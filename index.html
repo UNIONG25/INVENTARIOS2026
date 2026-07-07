@@ -771,13 +771,133 @@ async function renderScan(c) {
     <div class="card">
       <h2>Escanear código de barras</h2>
       <p style="color:#94a3b8;font-size:.85rem;margin-bottom:8px">
-        📱 Móvil: usa la cámara. 💻 PC con lector USB: enfoca el campo y escanea.
+        📱 Móvil: usa la cámara. 💻 PC con lector USB: usa el campo de abajo.
       </p>
-      <hr style="margin:16px 0;border-color:#334155">
-      <label>Lector USB / entrada manual</label>
-      <input id="usb-barcode" autofocus>
-      <div id="scan-result" style="margin-top:12px"></div>
+      
+      <div id="scanner-section">
+        <div id="scanner-reader" style="width:100%;max-width:400px;margin:0 auto"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:center">
+          <button id="btn-start-camera" style="width:auto;padding:8px 16px">📷 Iniciar cámara</button>
+          <button id="btn-stop-camera" class="ghost" style="width:auto;padding:8px 16px">⏹ Detener</button>
+        </div>
+      </div>
+      
+      <hr style="margin:20px 0;border-color:#334155">
+      
+      <div>
+        <label>Lector USB / entrada manual</label>
+        <input id="usb-barcode" autofocus placeholder="Escanea o escribe el código y presiona Enter">
+        <div id="scan-result" style="margin-top:12px"></div>
+      </div>
     </div>
+  `;
+  
+  // Cargar librería de escáner si no está cargada
+  if (!window.Html5Qrcode) {
+    try {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('No se pudo cargar el escáner'));
+        document.head.appendChild(script);
+      });
+    } catch(e) {
+      document.getElementById('scanner-section').innerHTML = 
+        '<div class="alert err">No se pudo cargar el escáner. Verifica tu conexión a internet.</div>';
+    }
+  }
+  
+  // Configurar botones
+  document.getElementById('btn-start-camera').onclick = startCamera;
+  document.getElementById('btn-stop-camera').onclick = stopCamera;
+  document.getElementById('usb-barcode').onkeydown = (e) => {
+    if (e.key === 'Enter') lookupBarcode(e.target.value);
+  };
+}
+
+let html5Qrcode = null;
+
+async function startCamera() {
+  if (!window.Html5Qrcode) {
+    alert('El escáner aún se está cargando. Espera un momento.');
+    return;
+  }
+  
+  if (html5Qrcode && html5Qrcode.isScanning) {
+    return; // Ya está escaneando
+  }
+  
+  try {
+    html5Qrcode = new Html5Qrcode('scanner-reader');
+    
+    // Configurar escáner para códigos de barras (no solo QR)
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 150 },
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.CODABAR
+      ]
+    };
+    
+    await html5Qrcode.start(
+      { facingMode: 'environment' }, // Cámara trasera en móviles
+      config,
+      (decodedText) => {
+        // Código escaneado exitosamente
+        stopCamera();
+        lookupBarcode(decodedText);
+      },
+      (errorMessage) => {
+        // Ignorar errores de escaneo continuo (solo log en consola)
+        // console.log(errorMessage);
+      }
+    );
+    
+    document.getElementById('btn-start-camera').style.display = 'none';
+    document.getElementById('btn-stop-camera').style.display = 'inline-block';
+    
+  } catch(err) {
+    console.error('Error al iniciar cámara:', err);
+    
+    let errorMsg = 'No se pudo acceder a la cámara.';
+    if (err.toString().includes('NotAllowedError')) {
+      errorMsg = 'Permiso de cámara denegado. Habilítalo en la configuración del navegador.';
+    } else if (err.toString().includes('NotFoundError')) {
+      errorMsg = 'No se encontró ninguna cámara en este dispositivo.';
+    } else if (err.toString().includes('NotReadableError')) {
+      errorMsg = 'La cámara está siendo usada por otra aplicación.';
+    }
+    
+    alert(errorMsg + '\n\nDetalles: ' + err.message);
+  }
+}
+
+async function stopCamera() {
+  if (html5Qrcode && html5Qrcode.isScanning) {
+    try {
+      await html5Qrcode.stop();
+      html5Qrcode.clear();
+    } catch(e) {
+      console.error('Error al detener cámara:', e);
+    }
+  }
+  
+  const startBtn = document.getElementById('btn-start-camera');
+  const stopBtn = document.getElementById('btn-stop-camera');
+  
+  if (startBtn) startBtn.style.display = 'inline-block';
+  if (stopBtn) stopBtn.style.display = 'inline-block';
+}
   `;
   
   document.getElementById('usb-barcode').onkeydown = (e) => {
