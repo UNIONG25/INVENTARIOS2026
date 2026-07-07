@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Inventario Solidario</title>
+<title>Registro Refugiados - Liceo Juan Landaeta</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
@@ -11,6 +11,7 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#
 .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:16px}
 h1{font-size:1.5rem;margin-bottom:16px;color:#38bdf8}
 h2{font-size:1.1rem;margin-bottom:12px;color:#94a3b8}
+h3{font-size:1rem;margin:16px 0 8px;color:#e2e8f0;border-bottom:1px solid #334155;padding-bottom:4px}
 label{display:block;font-size:.85rem;margin:8px 0 4px;color:#94a3b8}
 input,select,textarea,button{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:.95rem;margin-bottom:8px}
 button{background:#0ea5e9;color:white;font-weight:600;cursor:pointer;border:none;transition:.2s}
@@ -24,9 +25,8 @@ table{width:100%;border-collapse:collapse;font-size:.9rem}
 th,td{padding:8px;text-align:left;border-bottom:1px solid #334155}
 th{color:#94a3b8;font-weight:600}
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;font-weight:600}
-.b-in{background:#065f46;color:#6ee7b7}
-.b-out{background:#7f1d1d;color:#fca5a5}
-.b-adj{background:#78350f;color:#fcd34d}
+.b-family{background:#065f46;color:#6ee7b7}
+.b-individual{background:#7f1d1d;color:#fca5a5}
 .tabs{display:flex;gap:4px;margin-bottom:16px;overflow-x:auto}
 .tab{padding:8px 14px;border-radius:8px;background:#1e293b;cursor:pointer;white-space:nowrap;font-size:.9rem;border:1px solid #334155}
 .tab.active{background:#0ea5e9;color:white;border-color:#0ea5e9}
@@ -35,7 +35,7 @@ th{color:#94a3b8;font-weight:600}
 .alert.err{background:#7f1d1d;color:#fecaca}
 .alert.ok{background:#065f46;color:#a7f3d0}
 .mono{font-family:ui-monospace,Menlo,monospace;font-size:.8rem}
-#scanner-reader{width:100%;max-width:400px;margin:0 auto}
+.child-entry{background:#0f172a;padding:12px;border-radius:8px;margin-bottom:8px;border:1px solid #334155}
 </style>
 </head>
 <body>
@@ -43,8 +43,8 @@ th{color:#94a3b8;font-weight:600}
 
 <!-- LOGIN -->
 <section id="view-login" class="card">
-  <h1>📦 Inventario Solidario</h1>
-  <p style="color:#94a3b8;margin-bottom:16px">Sistema cifrado de extremo a extremo</p>
+  <h1>🏠 Registro de Refugiados</h1>
+  <p style="color:#94a3b8;margin-bottom:16px">Campamento Temporal Liceo Juan Landaeta (BDV)</p>
   <label>Usuario</label>
   <input id="login-user" autocomplete="username">
   <label>Contraseña</label>
@@ -56,7 +56,7 @@ th{color:#94a3b8;font-weight:600}
 <!-- APP -->
 <section id="view-app" class="hidden">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-    <h1>📦 Inventario</h1>
+    <h1>🏠 Registro de Refugiados</h1>
     <div style="display:flex;gap:8px;align-items:center">
       <span id="whoami" style="color:#94a3b8;font-size:.85rem"></span>
       <button id="btn-logout" class="ghost" style="width:auto;padding:6px 12px">Salir</button>
@@ -222,14 +222,14 @@ const TABS = {
   admin: [
     {id:'centers', label:'Centros'},
     {id:'users', label:'Usuarios'},
-    {id:'global', label:'Inventario Global'},
+    {id:'dashboard', label:'Dashboard'},
     {id:'audit', label:'Auditoría'}
   ],
   operator: [
-    {id:'products', label:'Productos'},
-    {id:'stock', label:'Movimientos'},
-    {id:'scan', label:'Escanear'},
-    {id:'audit', label:'Mi Auditoría'}
+    {id:'register-family', label:'Grupo Familiar'},
+    {id:'register-individual', label:'Persona Sola'},
+    {id:'records', label:'Registros'},
+    {id:'audit', label:'Auditoría'}
   ]
 };
 
@@ -259,15 +259,15 @@ function switchTab(id) {
   
   if (id === 'centers') renderCenters(c);
   else if (id === 'users') renderUsers(c);
-  else if (id === 'global') renderGlobal(c);
-  else if (id === 'products') renderProducts(c);
-  else if (id === 'stock') renderStock(c);
-  else if (id === 'scan') renderScan(c);
+  else if (id === 'dashboard') renderDashboard(c);
+  else if (id === 'register-family') renderRegisterFamily(c);
+  else if (id === 'register-individual') renderRegisterIndividual(c);
+  else if (id === 'records') renderRecords(c);
   else if (id === 'audit') renderAudit(c);
 }
 
 // ============================================
-// CENTROS
+// CENTROS (ADMIN)
 // ============================================
 async function renderCenters(c) {
   const {data} = await sb.from('centers').select('*').order('name');
@@ -310,7 +310,7 @@ async function createCenter() {
 }
 
 // ============================================
-// USUARIOS
+// USUARIOS (ADMIN)
 // ============================================
 async function renderUsers(c) {
   const {data:centers} = await sb.from('centers').select('id,name');
@@ -415,536 +415,474 @@ async function toggleUser(id, active) {
 }
 
 // ============================================
-// INVENTARIO GLOBAL (ADMIN)
+// DASHBOARD (ADMIN)
 // ============================================
-async function renderGlobal(c) {
-  c.innerHTML = '<div class="card"><h2>Cargando inventario global…</h2></div>';
+async function renderDashboard(c) {
+  c.innerHTML = '<div class="card"><h2>Cargando estadísticas…</h2></div>';
   
-  const {data:products} = await sb.from('products').select('*,centers(name)');
-  const {data:movements} = await sb.from('movements').select('*,products(barcode),centers(name)');
-  const masterKey = await deriveKey(session.password, `admin:${session.user.salt}`);
+  const {data:families} = await sb.from('families').select('center_id');
+  const {data:individuals} = await sb.from('individuals').select('center_id');
+  const {data:centers} = await sb.from('centers').select('id,name');
   
-  const rows = [];
-  for (const p of products||[]) {
-    try {
-      const payload = JSON.parse(await aesDecrypt(masterKey, p.iv, p.encrypted_payload));
-      let stock = 0;
-      if (movements) {
-        for (const m of movements.filter(m => m.product_id === p.id)) {
-          try {
-            const mp = JSON.parse(await aesDecrypt(masterKey, m.iv, m.encrypted_payload));
-            stock += (m.type === 'in' ? mp.qty : m.type === 'out' ? -mp.qty : mp.qty);
-          } catch(e) {}
-        }
-      }
-      rows.push({name:payload.name, barcode:p.barcode||'—', center:p.centers?.name, stock});
-    } catch(e) {
-      rows.push({name:'[cifrado]', barcode:p.barcode, center:p.centers?.name, stock:'?'});
-    }
-  }
+  const stats = {};
+  centers?.forEach(c => { stats[c.id] = {name:c.name, families:0, individuals:0}; });
   
-  let tableRows = '';
-  if (rows.length > 0) {
-    rows.forEach(r => {
-      tableRows += `<tr><td>${r.name}</td><td class="mono">${r.barcode}</td><td>${r.center}</td><td>${r.stock}</td></tr>`;
-    });
-  } else {
-    tableRows = '<tr><td colspan="4" style="color:#64748b">Vacío</td></tr>';
-  }
+  families?.forEach(f => { if (stats[f.center_id]) stats[f.center_id].families++; });
+  individuals?.forEach(i => { if (stats[i.center_id]) stats[i.center_id].individuals++; });
+  
+  let rows = '';
+  Object.values(stats).forEach(s => {
+    rows += `<tr><td>${s.name}</td><td>${s.families}</td><td>${s.individuals}</td><td>${s.families + s.individuals}</td></tr>`;
+  });
   
   c.innerHTML = `
     <div class="card">
-      <h2>Inventario global (${rows.length})</h2>
+      <h2>Dashboard General</h2>
       <table>
-        <thead><tr><th>Producto</th><th>Código</th><th>Centro</th><th>Stock</th></tr></thead>
-        <tbody>${tableRows}</tbody>
+        <thead><tr><th>Centro</th><th>Familias</th><th>Personas Solas</th><th>Total</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" style="color:#64748b">Sin datos</td></tr>'}</tbody>
       </table>
     </div>
   `;
 }
 
 // ============================================
-// PRODUCTOS (OPERADOR)
+// REGISTRO GRUPO FAMILIAR
 // ============================================
-async function renderProducts(c) {
-  const {data} = await sb.from('products').select('*').eq('center_id', session.centerId).order('updated_at', {ascending:false});
-  
-  const rows = [];
-  for (const p of data||[]) {
-    try {
-      const payload = JSON.parse(await aesDecrypt(session.centerKey, p.iv, p.encrypted_payload));
-      rows.push({...p, ...payload});
-    } catch(e) {
-      rows.push({...p, name:'[error descifrado]'});
-    }
-  }
-  
-  let tableRows = '';
-  if (rows.length > 0) {
-    rows.forEach((r, idx) => {
-      const searchStr = (r.barcode||'') + (r.name||'') + (r.cat||'');
-      tableRows += `
-        <tr data-search="${searchStr.toLowerCase()}">
-          <td class="mono">${r.barcode||'—'}</td>
-          <td>${r.name}</td>
-          <td>${r.unit}</td>
-          <td>${r.cat||''}</td>
-          <td>
-            <button class="ghost btn-edit-product" data-idx="${idx}" style="width:auto;padding:4px 8px">Editar</button>
-            <button class="danger btn-del-product" data-id="${r.id}" style="width:auto;padding:4px 8px"></button>
-          </td>
-        </tr>
-      `;
-    });
-  } else {
-    tableRows = '<tr><td colspan="5" style="color:#64748b">Sin productos</td></tr>';
-  }
-  
+function renderRegisterFamily(c) {
   c.innerHTML = `
     <div class="card">
-      <h2>Nuevo / Editar producto</h2>
-      <input type="hidden" id="p-id">
+      <h2>Registro de Grupo Familiar</h2>
+      
+      <h3>Representantes</h3>
+      <label>Apellidos y nombres de los representantes</label>
+      <input id="f-representatives" placeholder="Ej: Pérez García, Juan Carlos">
+      
       <div class="row">
-        <div><label>Código de barras</label><input id="p-barcode"></div>
-        <div><label>Nombre</label><input id="p-name"></div>
-      </div>
-      <div class="row">
-        <div><label>Unidad</label>
-          <select id="p-unit">
-            <option>unidad</option>
-            <option>kg</option>
-            <option>litro</option>
-            <option>caja</option>
-            <option>paquete</option>
+        <div>
+          <label>Grupo Sanguíneo (representantes)</label>
+          <select id="f-blood-rep">
+            <option value="">—</option>
+            <option>A+</option><option>A-</option>
+            <option>B+</option><option>B-</option>
+            <option>AB+</option><option>AB-</option>
+            <option>O+</option><option>O-</option>
           </select>
         </div>
-        <div><label>Categoría</label><input id="p-cat" placeholder="alimento, abrigo, higiene…"></div>
+        <div>
+          <label>Enfermedades que padecen</label>
+          <input id="f-diseases-rep" placeholder="Diabetes, hipertensión...">
+        </div>
       </div>
-      <label>Descripción / notas</label>
-      <textarea id="p-desc" rows="2"></textarea>
-      <div style="display:flex;gap:8px">
-        <button id="btn-save-product">Guardar</button>
-        <button id="btn-clear-product" class="ghost">Limpiar</button>
+      
+      <label>Alérgico a</label>
+      <input id="f-allergies-rep" placeholder="Medicamentos, alimentos...">
+      
+      <h3>Niños y Niñas</h3>
+      <div id="children-container"></div>
+      <button id="btn-add-child" class="ghost" style="width:auto;padding:6px 12px">+ Agregar niño/a</button>
+      
+      <h3>Información Adicional</h3>
+      <div class="row">
+        <div>
+          <label>Antecedentes Penales</label>
+          <select id="f-criminal-record">
+            <option value="no">No</option>
+            <option value="si">Sí</option>
+          </select>
+        </div>
+        <div>
+          <label>Procedencia / Referido de</label>
+          <input id="f-origin" placeholder="Ciudad, organización...">
+        </div>
       </div>
-    </div>
-    <div class="card">
-      <h2>Productos (${rows.length})</h2>
-      <input id="search-products" placeholder="Buscar…">
-      <table id="tbl-products">
-        <thead><tr><th>Código</th><th>Nombre</th><th>Unidad</th><th>Cat.</th><th></th></tr></thead>
-        <tbody>${tableRows}</tbody>
-      </table>
+      
+      <label>Lugar de Residencia</label>
+      <input id="f-residence" placeholder="Dirección o zona">
+      
+      <div class="row">
+        <div>
+          <label>Tipo de Vivienda</label>
+          <select id="f-housing-type">
+            <option>Casa</option>
+            <option>Apartamento</option>
+            <option>Otro</option>
+          </select>
+        </div>
+        <div>
+          <label>Afectación del Inmueble</label>
+          <input id="f-housing-damage" placeholder="Daños, destrucción...">
+        </div>
+      </div>
+      
+      <label>Pérdidas humanas / pariente</label>
+      <input id="f-human-losses" placeholder="Descripción si aplica">
+      
+      <label>Ocupación de los Representantes</label>
+      <input id="f-occupation" placeholder="Profesión u oficio">
+      
+      <button id="btn-save-family" style="margin-top:16px">Guardar Registro Familiar</button>
     </div>
   `;
   
-  window._productsCache = rows;
+  document.getElementById('btn-add-child').onclick = addChild;
+  document.getElementById('btn-save-family').onclick = saveFamily;
+}
+
+let childCount = 0;
+function addChild() {
+  childCount++;
+  const container = document.getElementById('children-container');
+  const div = document.createElement('div');
+  div.className = 'child-entry';
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <strong>Niño/a #${childCount}</strong>
+      <button class="danger btn-remove-child" style="width:auto;padding:4px 8px">Eliminar</button>
+    </div>
+    <label>Apellidos y nombres</label>
+    <input class="child-name" placeholder="Nombre completo">
+    <div class="row">
+      <div>
+        <label>Grupo Sanguíneo</label>
+        <select class="child-blood">
+          <option value="">—</option>
+          <option>A+</option><option>A-</option>
+          <option>B+</option><option>B-</option>
+          <option>AB+</option><option>AB-</option>
+          <option>O+</option><option>O-</option>
+        </select>
+      </div>
+      <div>
+        <label>Enfermedades</label>
+        <input class="child-diseases" placeholder="Enfermedades">
+      </div>
+    </div>
+    <label>Alérgico a</label>
+    <input class="child-allergies" placeholder="Alergias">
+    <label>Escolarizado</label>
+    <select class="child-schooled">
+      <option value="si">Sí</option>
+      <option value="no">No</option>
+    </select>
+  `;
+  container.appendChild(div);
   
-  document.getElementById('btn-save-product').onclick = saveProduct;
-  document.getElementById('btn-clear-product').onclick = clearProductForm;
-  document.getElementById('search-products').oninput = (e) => filterProducts(e.target.value);
+  div.querySelector('.btn-remove-child').onclick = () => div.remove();
+}
+
+async function saveFamily() {
+  const representatives = document.getElementById('f-representatives').value.trim();
+  if (!representatives) return alert('Nombre de representantes requerido');
   
-  document.querySelectorAll('.btn-edit-product').forEach(btn => {
-    btn.onclick = () => editProduct(window._productsCache[parseInt(btn.dataset.idx)]);
+  const children = [];
+  document.querySelectorAll('.child-entry').forEach(entry => {
+    children.push({
+      name: entry.querySelector('.child-name').value.trim(),
+      blood: entry.querySelector('.child-blood').value,
+      diseases: entry.querySelector('.child-diseases').value.trim(),
+      allergies: entry.querySelector('.child-allergies').value.trim(),
+      schooled: entry.querySelector('.child-schooled').value
+    });
   });
   
-  document.querySelectorAll('.btn-del-product').forEach(btn => {
-    btn.onclick = () => delProduct(btn.dataset.id);
-  });
-}
-
-function filterProducts(q) {
-  q = q.toLowerCase();
-  document.querySelectorAll('#tbl-products tbody tr').forEach(tr => {
-    tr.style.display = tr.dataset.search.includes(q) ? '' : 'none';
-  });
-}
-
-function editProduct(p) {
-  document.getElementById('p-id').value = p.id;
-  document.getElementById('p-barcode').value = p.barcode||'';
-  document.getElementById('p-name').value = p.name;
-  document.getElementById('p-unit').value = p.unit||'unidad';
-  document.getElementById('p-cat').value = p.cat||'';
-  document.getElementById('p-desc').value = p.desc||'';
-  window.scrollTo({top:0, behavior:'smooth'});
-}
-
-function clearProductForm() {
-  ['p-id','p-barcode','p-name','p-cat','p-desc'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-}
-
-async function saveProduct() {
-  const id = document.getElementById('p-id').value;
   const payload = {
-    name: document.getElementById('p-name').value.trim(),
-    unit: document.getElementById('p-unit').value,
-    cat: document.getElementById('p-cat').value.trim(),
-    desc: document.getElementById('p-desc').value.trim()
+    type: 'family',
+    representatives,
+    bloodRepresentatives: document.getElementById('f-blood-rep').value,
+    diseasesRepresentatives: document.getElementById('f-diseases-rep').value.trim(),
+    allergiesRepresentatives: document.getElementById('f-allergies-rep').value.trim(),
+    children,
+    criminalRecord: document.getElementById('f-criminal-record').value,
+    origin: document.getElementById('f-origin').value.trim(),
+    residence: document.getElementById('f-residence').value.trim(),
+    housingType: document.getElementById('f-housing-type').value,
+    housingDamage: document.getElementById('f-housing-damage').value.trim(),
+    humanLosses: document.getElementById('f-human-losses').value.trim(),
+    occupation: document.getElementById('f-occupation').value.trim()
   };
-  const barcode = document.getElementById('p-barcode').value.trim() || null;
   
-  if (!payload.name) return alert('Nombre requerido');
-
-  const {iv, ct} = await aesEncrypt(session.centerKey, JSON.stringify(payload));
-  const row = {
-    center_id: session.centerId,
-    barcode,
-    encrypted_payload: ct,
-    iv,
-    updated_at: new Date().toISOString()
-  };
-
-  if (id) {
-    const {error} = await sb.from('products').update(row).eq('id', id);
-    if (error) return alert(error.message);
-    await audit('UPDATE_PRODUCT', 'product', id, payload);
-  } else {
-    row.created_by = session.user.id;
-    const {data, error} = await sb.from('products').insert(row).select().single();
-    if (error) return alert(error.message);
-    await audit('CREATE_PRODUCT', 'product', data.id, payload);
-  }
-  
-  clearProductForm();
-  renderProducts(document.getElementById('tab-content'));
-}
-
-async function delProduct(id) {
-  if (!confirm('¿Eliminar producto? Se conservará en auditoría.')) return;
-  await sb.from('products').delete().eq('id', id);
-  await audit('DELETE_PRODUCT', 'product', id, {});
-  renderProducts(document.getElementById('tab-content'));
-}
-
-// ============================================
-// MOVIMIENTOS DE STOCK
-// ============================================
-async function renderStock(c) {
-  const {data:products} = await sb.from('products').select('*').eq('center_id', session.centerId);
-  const prods = [];
-  
-  for (const p of products||[]) {
-    try {
-      const pl = JSON.parse(await aesDecrypt(session.centerKey, p.iv, p.encrypted_payload));
-      prods.push({id:p.id, barcode:p.barcode, name:pl.name});
-    } catch(e) {}
-  }
-  
-  window._prodsCache = prods;
-  
-  const {data:movs} = await sb.from('movements')
-    .select('*')
-    .eq('center_id', session.centerId)
-    .order('created_at', {ascending:false})
-    .limit(100);
-  
-  const movsDec = [];
-  for (const m of movs||[]) {
-    try {
-      const pl = JSON.parse(await aesDecrypt(session.centerKey, m.iv, m.encrypted_payload));
-      const prod = prods.find(p => p.id === m.product_id);
-      movsDec.push({...m, ...pl, productName:prod?.name||'?', barcode:prod?.barcode||''});
-    } catch(e) {}
-  }
-  
-  let movsRows = '';
-  if (movsDec.length > 0) {
-    movsDec.forEach(m => {
-      const badgeClass = m.type === 'in' ? 'b-in' : m.type === 'out' ? 'b-out' : 'b-adj';
-      movsRows += `
-        <tr>
-          <td>${new Date(m.created_at).toLocaleString()}</td>
-          <td>${m.productName}<br><span class="mono" style="color:#64748b">${m.barcode}</span></td>
-          <td><span class="badge ${badgeClass}">${m.type}</span></td>
-          <td>${m.qty}</td>
-          <td>${m.notes||''}</td>
-        </tr>
-      `;
-    });
-  } else {
-    movsRows = '<tr><td colspan="5" style="color:#64748b">Sin movimientos</td></tr>';
-  }
-  
-  c.innerHTML = `
-    <div class="card">
-      <h2>Registrar movimiento</h2>
-      <label>Producto (escanea o busca)</label>
-      <input id="m-barcode" placeholder="Código de barras o nombre">
-      <input type="hidden" id="m-product-id">
-      <div id="m-prod-sel" style="color:#38bdf8;margin-bottom:8px"></div>
-      <div class="row">
-        <div>
-          <label>Tipo</label>
-          <select id="m-type">
-            <option value="in">⬇ Ingreso</option>
-            <option value="out"> Despacho/Salida</option>
-            <option value="adjust">🔧 Ajuste</option>
-          </select>
-        </div>
-        <div>
-          <label>Cantidad</label>
-          <input id="m-qty" type="number" min="0" step="any">
-        </div>
-      </div>
-      <label>Motivo / notas</label>
-      <textarea id="m-notes" rows="2"></textarea>
-      <button id="btn-save-movement">Registrar movimiento</button>
-    </div>
-    <div class="card">
-      <h2>Últimos movimientos</h2>
-      <table>
-        <thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Notas</th></tr></thead>
-        <tbody>${movsRows}</tbody>
-      </table>
-    </div>
-  `;
-  
-  document.getElementById('m-barcode').oninput = (e) => searchProd(e.target.value);
-  document.getElementById('btn-save-movement').onclick = saveMovement;
-}
-
-function searchProd(q) {
-  q = q.toLowerCase();
-  const sel = document.getElementById('m-prod-sel');
-  
-  if (!q) {
-    sel.innerHTML = '';
-    return;
-  }
-  
-  const matches = (window._prodsCache||[]).filter(p =>
-    (p.barcode||'').toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
-  ).slice(0, 5);
-  
-  if (matches.length > 0) {
-    sel.innerHTML = matches.map(p => {
-      const nameEscaped = p.name.replace(/'/g, "\\'");
-      return `<div style="cursor:pointer;padding:4px;border-bottom:1px solid #334155" class="pick-prod-item" data-id="${p.id}" data-name="${nameEscaped}" data-barcode="${p.barcode||''}">${p.barcode||'—'} · ${p.name}</div>`;
-    }).join('');
-    
-    document.querySelectorAll('.pick-prod-item').forEach(item => {
-      item.onclick = () => pickProd(item.dataset.id, item.dataset.name, item.dataset.barcode);
-    });
-  } else {
-    sel.innerHTML = '<span style="color:#64748b">Sin coincidencias</span>';
-  }
-}
-
-function pickProd(id, name, barcode) {
-  document.getElementById('m-product-id').value = id;
-  document.getElementById('m-barcode').value = barcode||name;
-  document.getElementById('m-prod-sel').innerHTML = `✅ Seleccionado: <b>${name}</b>`;
-}
-
-async function saveMovement() {
-  const product_id = document.getElementById('m-product-id').value;
-  const type = document.getElementById('m-type').value;
-  const qty = parseFloat(document.getElementById('m-qty').value);
-  const notes = document.getElementById('m-notes').value.trim();
-  
-  if (!product_id || !qty || qty <= 0) {
-    return alert('Producto y cantidad requeridos');
-  }
-  
-  const payload = {qty, notes};
   const {iv, ct} = await aesEncrypt(session.centerKey, JSON.stringify(payload));
   
-  const {error} = await sb.from('movements').insert({
+  const {error} = await sb.from('families').insert({
     center_id: session.centerId,
-    product_id,
-    type,
     encrypted_payload: ct,
     iv,
     created_by: session.user.id
   });
   
   if (error) return alert(error.message);
-  await audit('STOCK_' + type.toUpperCase(), 'movement', product_id, payload);
-  renderStock(document.getElementById('tab-content'));
+  
+  alert('✅ Familia registrada exitosamente');
+  await audit('REGISTER_FAMILY', 'family', null, {representatives, childrenCount: children.length});
+  
+  // Limpiar formulario
+  document.querySelectorAll('#view-app input, #view-app select, #view-app textarea').forEach(el => {
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
+  });
+  document.getElementById('children-container').innerHTML = '';
+  childCount = 0;
 }
 
 // ============================================
-// ESCÁNER DE CÓDIGO DE BARRAS
+// REGISTRO PERSONA SOLA
 // ============================================
-let html5Qrcode = null;
-
-async function renderScan(c) {
+function renderRegisterIndividual(c) {
   c.innerHTML = `
     <div class="card">
-      <h2>Escanear código de barras</h2>
-      <p style="color:#94a3b8;font-size:.85rem;margin-bottom:8px">
-        📱 Móvil: usa la cámara. 💻 PC con lector USB: usa el campo de abajo.
-      </p>
+      <h2>Registro de Persona sin Familia</h2>
       
-      <div id="scanner-section">
-        <div id="scanner-reader"></div>
-        <div style="display:flex;gap:8px;margin-top:12px;justify-content:center">
-          <button id="btn-start-camera" style="width:auto;padding:8px 16px">📷 Iniciar cámara</button>
-          <button id="btn-stop-camera" class="ghost" style="width:auto;padding:8px 16px;display:none">⏹ Detener</button>
+      <label>Apellidos y nombres</label>
+      <input id="i-name" placeholder="Nombre completo">
+      
+      <div class="row">
+        <div>
+          <label>Sexo</label>
+          <select id="i-sex">
+            <option>Masculino</option>
+            <option>Femenino</option>
+            <option>Otro</option>
+          </select>
+        </div>
+        <div>
+          <label>Grupo Sanguíneo</label>
+          <select id="i-blood">
+            <option value="">—</option>
+            <option>A+</option><option>A-</option>
+            <option>B+</option><option>B-</option>
+            <option>AB+</option><option>AB-</option>
+            <option>O+</option><option>O-</option>
+          </select>
         </div>
       </div>
       
-      <hr style="margin:20px 0;border-color:#334155">
+      <label>Enfermedades que padece</label>
+      <input id="i-diseases" placeholder="Diabetes, hipertensión...">
       
-      <div>
-        <label>Lector USB / entrada manual</label>
-        <input id="usb-barcode" autofocus placeholder="Escanea o escribe el código y presiona Enter">
-        <div id="scan-result" style="margin-top:12px"></div>
+      <label>Alérgico a</label>
+      <input id="i-allergies" placeholder="Medicamentos, alimentos...">
+      
+      <div class="row">
+        <div>
+          <label>Antecedentes Penales</label>
+          <select id="i-criminal-record">
+            <option value="no">No</option>
+            <option value="si">Sí</option>
+          </select>
+        </div>
+        <div>
+          <label>Procedencia / Referido de</label>
+          <input id="i-origin" placeholder="Ciudad, organización...">
+        </div>
       </div>
+      
+      <label>Lugar de Residencia</label>
+      <input id="i-residence" placeholder="Dirección o zona">
+      
+      <div class="row">
+        <div>
+          <label>Tipo de Vivienda</label>
+          <select id="i-housing-type">
+            <option>Casa</option>
+            <option>Apartamento</option>
+            <option>Otro</option>
+          </select>
+        </div>
+        <div>
+          <label>Afectación del Inmueble</label>
+          <input id="i-housing-damage" placeholder="Daños, destrucción...">
+        </div>
+      </div>
+      
+      <label>Pérdidas humanas / parientes</label>
+      <input id="i-human-losses" placeholder="Descripción si aplica">
+      
+      <label>Ocupación</label>
+      <input id="i-occupation" placeholder="Profesión u oficio">
+      
+      <button id="btn-save-individual" style="margin-top:16px">Guardar Registro Individual</button>
     </div>
   `;
   
-  // Cargar librería de escáner si no está cargada
-  if (!window.Html5Qrcode) {
-    try {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
-        script.onload = resolve;
-        script.onerror = () => reject(new Error('No se pudo cargar el escáner'));
-        document.head.appendChild(script);
-      });
-    } catch(e) {
-      document.getElementById('scanner-section').innerHTML = 
-        '<div class="alert err">No se pudo cargar el escáner. Verifica tu conexión a internet.</div>';
-    }
-  }
+  document.getElementById('btn-save-individual').onclick = saveIndividual;
+}
+
+async function saveIndividual() {
+  const name = document.getElementById('i-name').value.trim();
+  if (!name) return alert('Nombre requerido');
   
-  // Configurar botones
-  document.getElementById('btn-start-camera').onclick = startCamera;
-  document.getElementById('btn-stop-camera').onclick = stopCamera;
-  document.getElementById('usb-barcode').onkeydown = (e) => {
-    if (e.key === 'Enter') lookupBarcode(e.target.value);
+  const payload = {
+    type: 'individual',
+    name,
+    sex: document.getElementById('i-sex').value,
+    blood: document.getElementById('i-blood').value,
+    diseases: document.getElementById('i-diseases').value.trim(),
+    allergies: document.getElementById('i-allergies').value.trim(),
+    criminalRecord: document.getElementById('i-criminal-record').value,
+    origin: document.getElementById('i-origin').value.trim(),
+    residence: document.getElementById('i-residence').value.trim(),
+    housingType: document.getElementById('i-housing-type').value,
+    housingDamage: document.getElementById('i-housing-damage').value.trim(),
+    humanLosses: document.getElementById('i-human-losses').value.trim(),
+    occupation: document.getElementById('i-occupation').value.trim()
   };
+  
+  const {iv, ct} = await aesEncrypt(session.centerKey, JSON.stringify(payload));
+  
+  const {error} = await sb.from('individuals').insert({
+    center_id: session.centerId,
+    encrypted_payload: ct,
+    iv,
+    created_by: session.user.id
+  });
+  
+  if (error) return alert(error.message);
+  
+  alert('✅ Persona registrada exitosamente');
+  await audit('REGISTER_INDIVIDUAL', 'individual', null, {name});
+  
+  // Limpiar formulario
+  document.querySelectorAll('#view-app input, #view-app select, #view-app textarea').forEach(el => {
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
+  });
 }
 
-async function startCamera() {
-  if (!window.Html5Qrcode) {
-    alert('El escáner aún se está cargando. Espera un momento.');
-    return;
-  }
+// ============================================
+// REGISTROS (VER LISTA)
+// ============================================
+async function renderRecords(c) {
+  c.innerHTML = '<div class="card"><h2>Cargando registros…</h2></div>';
   
-  if (html5Qrcode && html5Qrcode.isScanning) {
-    return;
-  }
+  const {data:families} = await sb.from('families')
+    .select('*')
+    .eq('center_id', session.centerId)
+    .order('created_at', {ascending:false});
   
-  try {
-    html5Qrcode = new Html5Qrcode('scanner-reader');
-    
-    const config = {
-      fps: 10,
-      qrbox: { width: 250, height: 150 },
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_93,
-        Html5QrcodeSupportedFormats.ITF,
-        Html5QrcodeSupportedFormats.CODABAR
-      ]
-    };
-    
-    await html5Qrcode.start(
-      { facingMode: 'environment' },
-      config,
-      (decodedText) => {
-        stopCamera();
-        lookupBarcode(decodedText);
-      },
-      (errorMessage) => {}
-    );
-    
-    document.getElementById('btn-start-camera').style.display = 'none';
-    document.getElementById('btn-stop-camera').style.display = 'inline-block';
-    
-  } catch(err) {
-    console.error('Error al iniciar cámara:', err);
-    
-    let errorMsg = 'No se pudo acceder a la cámara.';
-    if (err.toString().includes('NotAllowedError')) {
-      errorMsg = 'Permiso de cámara denegado. Habilítalo en la configuración del navegador.';
-    } else if (err.toString().includes('NotFoundError')) {
-      errorMsg = 'No se encontró ninguna cámara en este dispositivo.';
-    } else if (err.toString().includes('NotReadableError')) {
-      errorMsg = 'La cámara está siendo usada por otra aplicación.';
-    }
-    
-    alert(errorMsg + '\n\nDetalles: ' + err.message);
-  }
-}
-
-async function stopCamera() {
-  if (html5Qrcode && html5Qrcode.isScanning) {
+  const {data:individuals} = await sb.from('individuals')
+    .select('*')
+    .eq('center_id', session.centerId)
+    .order('created_at', {ascending:false});
+  
+  const decryptedFamilies = [];
+  for (const f of families||[]) {
     try {
-      await html5Qrcode.stop();
-      html5Qrcode.clear();
-    } catch(e) {
-      console.error('Error al detener cámara:', e);
-    }
+      const payload = JSON.parse(await aesDecrypt(session.centerKey, f.iv, f.encrypted_payload));
+      decryptedFamilies.push({...f, ...payload});
+    } catch(e) {}
   }
   
-  const startBtn = document.getElementById('btn-start-camera');
-  const stopBtn = document.getElementById('btn-stop-camera');
+  const decryptedIndividuals = [];
+  for (const i of individuals||[]) {
+    try {
+      const payload = JSON.parse(await aesDecrypt(session.centerKey, i.iv, i.encrypted_payload));
+      decryptedIndividuals.push({...i, ...payload});
+    } catch(e) {}
+  }
   
-  if (startBtn) startBtn.style.display = 'inline-block';
-  if (stopBtn) stopBtn.style.display = 'none';
+  let rows = '';
+  decryptedFamilies.forEach(f => {
+    rows += `
+      <tr>
+        <td><span class="badge b-family">Familia</span></td>
+        <td>${f.representatives}</td>
+        <td>${f.children?.length||0} niños</td>
+        <td>${new Date(f.created_at).toLocaleDateString()}</td>
+        <td>
+          <button class="ghost btn-view-family" data-id="${f.id}" style="width:auto;padding:4px 8px">Ver</button>
+        </td>
+      </tr>
+    `;
+  });
+  
+  decryptedIndividuals.forEach(i => {
+    rows += `
+      <tr>
+        <td><span class="badge b-individual">Individual</span></td>
+        <td>${i.name}</td>
+        <td>${i.sex}</td>
+        <td>${new Date(i.created_at).toLocaleDateString()}</td>
+        <td>
+          <button class="ghost btn-view-individual" data-id="${i.id}" style="width:auto;padding:4px 8px">Ver</button>
+        </td>
+      </tr>
+    `;
+  });
+  
+  c.innerHTML = `
+    <div class="card">
+      <h2>Registros (${decryptedFamilies.length + decryptedIndividuals.length})</h2>
+      <table>
+        <thead><tr><th>Tipo</th><th>Nombre</th><th>Detalle</th><th>Fecha</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" style="color:#64748b">Sin registros</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+  
+  window._familiesCache = decryptedFamilies;
+  window._individualsCache = decryptedIndividuals;
+  
+  document.querySelectorAll('.btn-view-family').forEach(btn => {
+    btn.onclick = () => viewFamily(btn.dataset.id);
+  });
+  document.querySelectorAll('.btn-view-individual').forEach(btn => {
+    btn.onclick = () => viewIndividual(btn.dataset.id);
+  });
 }
 
-async function lookupBarcode(code) {
-  code = code.trim();
-  if (!code) return;
+function viewFamily(id) {
+  const f = window._familiesCache.find(x => x.id === id);
+  if (!f) return;
   
-  document.getElementById('usb-barcode').value = code;
-  const prods = window._prodsCache || [];
-  const p = prods.find(x => x.barcode === code);
-  const res = document.getElementById('scan-result');
-  
-  if (!p) {
-    res.innerHTML = `
-      <div class="alert err">
-        Código <b>${code}</b> no encontrado.
-        <button id="btn-create-barcode" style="width:auto;padding:4px 10px;margin-top:8px">Crear producto</button>
+  let childrenHtml = '';
+  f.children?.forEach((c, i) => {
+    childrenHtml += `
+      <div class="child-entry">
+        <strong>${i+1}. ${c.name}</strong><br>
+        Sangre: ${c.blood||'—'} | Escolarizado: ${c.schooled}<br>
+        Enfermedades: ${c.diseases||'—'}<br>
+        Alergias: ${c.allergies||'—'}
       </div>
     `;
-    document.getElementById('btn-create-barcode').onclick = () => goCreateWithBarcode(code);
-    return;
-  }
+  });
   
-  res.innerHTML = `
-    <div class="alert ok">
-      ✅ <b>${p.name}</b> (${p.barcode})<br>
-      <button id="btn-quick-in" style="width:auto;padding:6px 12px;margin-top:8px">⬇ Ingreso rápido</button>
-      <button id="btn-quick-out" class="danger" style="width:auto;padding:6px 12px;margin-top:8px"> Despacho rápido</button>
-      <button id="btn-go-stock" class="ghost" style="width:auto;padding:6px 12px;margin-top:8px">Ir a movimientos</button>
-    </div>
-  `;
-  
-  document.getElementById('btn-quick-in').onclick = () => quickStock(p.id, 'in');
-  document.getElementById('btn-quick-out').onclick = () => quickStock(p.id, 'out');
-  document.getElementById('btn-go-stock').onclick = () => switchTab('stock');
+  alert(`
+FAMILIA: ${f.representatives}
+Sangre: ${f.bloodRepresentatives||'—'}
+Enfermedades: ${f.diseasesRepresentatives||'—'}
+Alergias: ${f.allergiesRepresentatives||'—'}
+
+NIÑOS (${f.children?.length||0}):
+${childrenHtml}
+
+ORIGEN: ${f.origin||'—'}
+RESIDENCIA: ${f.residence||'—'}
+VIVIENDA: ${f.housingType} - ${f.housingDamage||'sin daños'}
+PÉRDIDAS: ${f.humanLosses||'—'}
+OCUPACIÓN: ${f.occupation||'—'}
+ANTECEDENTES: ${f.criminalRecord}
+  `);
 }
 
-function goCreateWithBarcode(code) {
-  switchTab('products');
-  setTimeout(() => {
-    document.getElementById('p-barcode').value = code;
-  }, 100);
-}
+function viewIndividual(id) {
+  const i = window._individualsCache.find(x => x.id === id);
+  if (!i) return;
+  
+  alert(`
+PERSONA: ${i.name}
+SEXO: ${i.sex}
+SANGRE: ${i.blood||'—'}
+ENFERMEDADES: ${i.diseases||'—'}
+ALERGIAS: ${i.allergies||'—'}
 
-function quickStock(pid, type) {
-  switchTab('stock');
-  setTimeout(() => {
-    const p = window._prodsCache.find(x => x.id === pid);
-    if (p) pickProd(p.id, p.name, p.barcode);
-    document.getElementById('m-type').value = type;
-    document.getElementById('m-qty').focus();
-  }, 150);
+ORIGEN: ${i.origin||'—'}
+RESIDENCIA: ${i.residence||'—'}
+VIVIENDA: ${i.housingType} - ${i.housingDamage||'sin daños'}
+PÉRDIDAS: ${i.humanLosses||'—'}
+OCUPACIÓN: ${i.occupation||'—'}
+ANTECEDENTES: ${i.criminalRecord}
+  `);
 }
 
 // ============================================
