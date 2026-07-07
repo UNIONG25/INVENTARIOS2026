@@ -3,10 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0f172a">
 <title>Inventario Solidario</title>
-<link rel="manifest" href='data:application/manifest+json,{"name":"Inventario Solidario","short_name":"Inventario","start_url":".","display":"standalone","background_color":"#0f172a","theme_color":"#0f172a","icons":[{"src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%230f172a%22/><text x=%2250%22 y=%2265%22 font-size=%2260%22 text-anchor=%22middle%22 fill=%22white%22>📦</text></svg>","sizes":"192x192","type":"image/svg+xml"}]}'>
-<link rel="icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%230f172a"/><text x="50" y="65" font-size="60" text-anchor="middle" fill="white">📦</text></svg>'>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
@@ -34,60 +31,42 @@ th{color:#94a3b8;font-weight:600}
 .alert{padding:10px;border-radius:8px;margin-bottom:12px;font-size:.9rem}
 .alert.err{background:#7f1d1d;color:#fecaca}
 .alert.ok{background:#065f46;color:#a7f3d0}
-#scanner-box{width:100%;max-width:400px;margin:0 auto}
 .mono{font-family:ui-monospace,Menlo,monospace;font-size:.8rem}
 </style>
 </head>
 <body>
 <div class="container">
-
-<!-- ============ LOGIN ============ -->
 <section id="view-login" class="card">
   <h1>📦 Inventario Solidario</h1>
-  <p style="color:#94a3b8;margin-bottom:16px">Sistema cifrado de extremo a extremo · Multi-centro</p>
+  <p style="color:#94a3b8;margin-bottom:16px">Sistema cifrado de extremo a extremo</p>
   <label>Usuario</label><input id="login-user" autocomplete="username">
   <label>Contraseña</label><input id="login-pass" type="password" autocomplete="current-password">
   <button onclick="doLogin()">Ingresar</button>
   <div id="login-msg"></div>
 </section>
 
-<!-- ============ APP ============ -->
 <section id="view-app" class="hidden">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-    <h1 id="app-title">📦 Inventario</h1>
+    <h1>📦 Inventario</h1>
     <div style="display:flex;gap:8px;align-items:center">
       <span id="whoami" style="color:#94a3b8;font-size:.85rem"></span>
       <button class="ghost" style="width:auto;padding:6px 12px" onclick="doLogout()">Salir</button>
     </div>
   </div>
-
   <div class="tabs" id="tabs"></div>
   <div id="tab-content"></div>
 </section>
 </div>
 
-<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ============================================================
-   CONFIG — reemplaza con tus credenciales de Supabase
-   ============================================================ */
 const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
 const SUPABASE_ANON = 'TU-ANON-KEY';
-// Clave pública HMAC para firmar auditoría (generada por admin, compartida con operadores del centro)
-// En producción real, esta clave se deriva de la "center key" que solo admin y el centro conocen.
 const AUDIT_HMAC_SEED = 'cambia-esta-semilla-por-una-aleatoria-larga';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+let session = null;
 
-/* ============================================================
-   ESTADO GLOBAL
-   ============================================================ */
-let session = null; // {user, centerKey, centerId, role, username}
-
-/* ============================================================
-   CRYPTO — E2E real
-   ============================================================ */
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 const b64 = {
@@ -95,73 +74,50 @@ const b64 = {
   dec: str => Uint8Array.from(atob(str), c=>c.charCodeAt(0))
 };
 
-async function deriveKey(password, salt, usage=['encrypt','decrypt']) {
-  const baseKey = await crypto.subtle.importKey(
-    'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
-  );
-  return crypto.subtle.deriveKey(
-    {name:'PBKDF2', salt: enc.encode(salt), iterations:200000, hash:'SHA-256'},
-    baseKey, {name:'AES-GCM', length:256}, false, usage
-  );
+async function deriveKey(password, salt) {
+  const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode(salt),iterations:200000,hash:'SHA-256'},baseKey,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
 }
 async function aesEncrypt(key, plaintext) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc.encode(plaintext));
-  return { iv: b64.enc(iv), ct: b64.enc(ct) };
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(plaintext));
+  return {iv:b64.enc(iv),ct:b64.enc(ct)};
 }
 async function aesDecrypt(key, ivB64, ctB64) {
-  const pt = await crypto.subtle.decrypt(
-    {name:'AES-GCM', iv: b64.dec(ivB64)}, key, b64.dec(ctB64)
-  );
+  const pt = await crypto.subtle.decrypt({name:'AES-GCM',iv:b64.dec(ivB64)},key,b64.dec(ctB64));
   return dec.decode(pt);
 }
 async function sha256(str){
-  const h = await crypto.subtle.digest('SHA-256', enc.encode(str));
+  const h = await crypto.subtle.digest('SHA-256',enc.encode(str));
   return b64.enc(h);
 }
 async function hmacSign(key, data){
-  const k = await crypto.subtle.importKey('raw', enc.encode(key), {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
-  const s = await crypto.subtle.sign('HMAC', k, enc.encode(data));
+  const k = await crypto.subtle.importKey('raw',enc.encode(key),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const s = await crypto.subtle.sign('HMAC',k,enc.encode(data));
   return b64.enc(s);
 }
 async function hashPassword(password, salt){
-  // PBKDF2-SHA256 → hex-like b64
-  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits(
-    {name:'PBKDF2', salt: enc.encode(salt), iterations:200000, hash:'SHA-256'}, base, 256
-  );
+  const base = await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:200000,hash:'SHA-256'},base,256);
   return b64.enc(bits);
 }
 
-/* ============================================================
-   AUDITORÍA — hash chain + firma HMAC (anti-fraude)
-   ============================================================ */
 let lastAuditHash = null;
 async function loadLastAuditHash(){
-  const { data } = await sb.from('audit_log')
-    .select('payload_hash').eq('center_id', session.centerId)
-    .order('id', {ascending:false}).limit(1).maybeSingle();
+  const {data} = await sb.from('audit_log').select('payload_hash').eq('center_id',session.centerId).order('id',{ascending:false}).limit(1).maybeSingle();
   lastAuditHash = data?.payload_hash || '0';
 }
-async function audit(action, targetType, targetId, payload){
+async function audit(action,targetType,targetId,payload){
   const payloadStr = JSON.stringify({action,targetType,targetId,payload,ts:Date.now(),user:session.username});
   const ph = await sha256(payloadStr);
-  const chainInput = (lastAuditHash||'0') + '|' + ph;
-  const sig = await hmacSign(AUDIT_HMAC_SEED + ':' + session.centerId, chainInput);
-  const row = {
-    center_id: session.centerId,
-    user_id: session.user.id,
-    action, target_type: targetType, target_id: targetId,
-    payload_hash: ph, prev_hash: lastAuditHash||'0', signature: sig
-  };
-  const { error } = await sb.from('audit_log').insert(row);
+  const chainInput = (lastAuditHash||'0')+'|'+ph;
+  const sig = await hmacSign(AUDIT_HMAC_SEED+':'+session.centerId,chainInput);
+  const row = {center_id:session.centerId,user_id:session.user.id,action,target_type:targetType,target_id:targetId,payload_hash:ph,prev_hash:lastAuditHash||'0',signature:sig};
+  const {error} = await sb.from('audit_log').insert(row);
   if (error) throw error;
   lastAuditHash = ph;
 }
 
-/* ============================================================
-   AUTH
-   ============================================================ */
 async function doLogin(){
   const u = document.getElementById('login-user').value.trim();
   const p = document.getElementById('login-pass').value;
@@ -169,28 +125,16 @@ async function doLogin(){
   msg.innerHTML = '';
   if (!u || !p) { msg.innerHTML = '<div class="alert err">Completa los campos</div>'; return; }
 
-  const { data: user, error } = await sb.from('users')
-    .select('*').eq('username', u).eq('active', true).maybeSingle();
+  const {data:user,error} = await sb.from('users').select('*').eq('username',u).eq('active',true).maybeSingle();
   if (error || !user) { msg.innerHTML = '<div class="alert err">Credenciales inválidas</div>'; return; }
 
-  const ph = await hashPassword(p, user.salt);
+  const ph = await hashPassword(p,user.salt);
   if (ph !== user.password_hash) { msg.innerHTML = '<div class="alert err">Credenciales inválidas</div>'; return; }
 
-  // Derivar centerKey: usa password + salt + center_id como material
-  // Admin: centerKey = derive(password, 'admin:'+salt) → puede descifrar cualquier centro
-  // Operator: centerKey = derive(password, salt) → solo su centro
-  const keyMaterial = user.role === 'admin'
-    ? `admin:${user.salt}`
-    : user.salt;
-  const centerKey = await deriveKey(p, keyMaterial);
+  const keyMaterial = user.role === 'admin' ? `admin:${user.salt}` : user.salt;
+  const centerKey = await deriveKey(p,keyMaterial);
 
-  // Para admin necesitamos una forma de descifrar otros centros.
-  // Solución: al crear un centro, admin genera una "center secret" cifrada con su propia key.
-  // Simplificación aquí: admin usa su password como master → cada centro guarda su centerSecret cifrado.
-  // Para mantener el demo funcional, usamos una "center secret" almacenada en tabla centers.
-  // (Ver esquema extendido abajo — añade columna center_secret_ciphertext + iv a centers)
-
-  session = { user, centerKey, centerId: user.center_id, role: user.role, username: u, password: p };
+  session = {user,centerKey,centerId:user.center_id,role:user.role,username:u,password:p};
   await loadLastAuditHash();
   await audit('LOGIN','user',user.id,{ip:navigator.userAgent.slice(0,60)});
 
@@ -206,100 +150,44 @@ function doLogout(){
   document.getElementById('view-login').classList.remove('hidden');
 }
 
-/* ============================================================
-   TABS
-   ============================================================ */
 const TABS = {
-  admin: [
-    {id:'centers',label:'Centros'},
-    {id:'users',label:'Usuarios'},
-    {id:'global',label:'Inventario Global'},
-    {id:'audit',label:'Auditoría'}
-  ],
-  operator: [
-    {id:'products',label:'Productos'},
-    {id:'stock',label:'Movimientos'},
-    {id:'scan',label:'Escanear'},
-    {id:'audit',label:'Mi Auditoría'}
-  ]
+  admin:[{id:'centers',label:'Centros'},{id:'users',label:'Usuarios'},{id:'global',label:'Inventario Global'},{id:'audit',label:'Auditoría'}],
+  operator:[{id:'products',label:'Productos'},{id:'stock',label:'Movimientos'},{id:'scan',label:'Escanear'},{id:'audit',label:'Mi Auditoría'}]
 };
 function renderTabs(){
   const tabs = TABS[session.role];
-  document.getElementById('tabs').innerHTML = tabs.map((t,i)=>
-    `<div class="tab ${i===0?'active':''}" data-tab="${t.id}" onclick="switchTab('${t.id}')">${t.label}</div>`
-  ).join('');
+  document.getElementById('tabs').innerHTML = tabs.map((t,i)=>`<div class="tab ${i===0?'active':''}" data-tab="${t.id}" onclick="switchTab('${t.id}')">${t.label}</div>`).join('');
   switchTab(tabs[0].id);
 }
 function switchTab(id){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===id));
   const c = document.getElementById('tab-content');
-  if (id==='centers')   return renderCenters(c);
-  if (id==='users')     return renderUsers(c);
-  if (id==='global')    return renderGlobal(c);
-  if (id==='products')  return renderProducts(c);
-  if (id==='stock')     return renderStock(c);
-  if (id==='scan')      return renderScan(c);
-  if (id==='audit')     return renderAudit(c);
+  if (id==='centers') return renderCenters(c);
+  if (id==='users') return renderUsers(c);
+  if (id==='global') return renderGlobal(c);
+  if (id==='products') return renderProducts(c);
+  if (id==='stock') return renderStock(c);
+  if (id==='scan') return renderScan(c);
+  if (id==='audit') return renderAudit(c);
 }
 
-/* ============================================================
-   ADMIN — CENTROS
-   ============================================================ */
 async function renderCenters(c){
-  const { data } = await sb.from('centers').select('*').order('name');
-  c.innerHTML = `
-    <div class="card">
-      <h2>Nuevo centro de acopio</h2>
-      <input id="nc-name" placeholder="Nombre del centro">
-      <button onclick="createCenter()">Crear centro</button>
-    </div>
-    <div class="card">
-      <h2>Centros (${data?.length||0})</h2>
-      <table><thead><tr><th>Nombre</th><th>ID</th><th>Creado</th></tr></thead>
-      <tbody>${(data||[]).map(r=>`<tr><td>${r.name}</td><td class="mono">${r.id.slice(0,8)}…</td><td>${new Date(r.created_at).toLocaleString()}</td></tr>`).join('')||'<tr><td colspan=3 style="color:#64748b">Sin centros</td></tr>'}</tbody></table>
-    </div>`;
+  const {data} = await sb.from('centers').select('*').order('name');
+  c.innerHTML = `<div class="card"><h2>Nuevo centro de acopio</h2><input id="nc-name" placeholder="Nombre del centro"><button onclick="createCenter()">Crear centro</button></div><div class="card"><h2>Centros (${data?.length||0})</h2><table><thead><tr><th>Nombre</th><th>ID</th><th>Creado</th></tr></thead><tbody>${(data||[]).map(r=>`<tr><td>${r.name}</td><td class="mono">${r.id.slice(0,8)}…</td><td>${new Date(r.created_at).toLocaleString()}</td></tr>`).join('')||'<tr><td colspan=3 style="color:#64748b">Sin centros</td></tr>'}</tbody></table></div>`;
 }
 async function createCenter(){
   const name = document.getElementById('nc-name').value.trim();
   if (!name) return alert('Nombre requerido');
-  const { error } = await sb.from('centers').insert({name});
+  const {error} = await sb.from('centers').insert({name});
   if (error) return alert(error.message);
   await audit('CREATE_CENTER','center',null,{name});
   renderCenters(document.getElementById('tab-content'));
 }
 
-/* ============================================================
-   ADMIN — USUARIOS
-   ============================================================ */
 async function renderUsers(c){
-  const { data: centers } = await sb.from('centers').select('id,name');
-  const { data: users } = await sb.from('users').select('*,centers(name)').order('created_at',{ascending:false});
-  c.innerHTML = `
-    <div class="card">
-      <h2>Crear usuario</h2>
-      <div class="row">
-        <div><label>Usuario</label><input id="nu-user"></div>
-        <div><label>Contraseña</label><input id="nu-pass" type="text"></div>
-      </div>
-      <label>Rol</label>
-      <select id="nu-role"><option value="operator">Operador de centro</option><option value="admin">Administrador global</option></select>
-      <label>Centro (solo operadores)</label>
-      <select id="nu-center"><option value="">— sin centro (admin) —</option>
-        ${(centers||[]).map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}
-      </select>
-      <button onclick="createUser()">Crear usuario</button>
-      <div id="nu-msg"></div>
-    </div>
-    <div class="card">
-      <h2>Usuarios</h2>
-      <table><thead><tr><th>Usuario</th><th>Rol</th><th>Centro</th><th>Activo</th><th></th></tr></thead>
-      <tbody>${(users||[]).map(u=>`<tr>
-        <td>${u.username}</td><td>${u.role}</td>
-        <td>${u.centers?.name||'—'}</td>
-        <td>${u.active?'✅':'❌'}</td>
-        <td><button class="ghost" style="width:auto;padding:4px 8px" onclick="toggleUser('${u.id}',${!u.active})">${u.active?'Desactivar','Activar'}</button></td>
-      </tr>`).join('')||'<tr><td colspan=5 style="color:#64748b">Sin usuarios</td></tr>'}</tbody></table>
-    </div>`;
+  const {data:centers} = await sb.from('centers').select('id,name');
+  const {data:users} = await sb.from('users').select('*,centers(name)').order('created_at',{ascending:false});
+  c.innerHTML = `<div class="card"><h2>Crear usuario</h2><div class="row"><div><label>Usuario</label><input id="nu-user"></div><div><label>Contraseña</label><input id="nu-pass" type="text"></div></div><label>Rol</label><select id="nu-role"><option value="operator">Operador de centro</option><option value="admin">Administrador global</option></select><label>Centro (solo operadores)</label><select id="nu-center"><option value="">— sin centro (admin) —</option>${(centers||[]).map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}</select><button onclick="createUser()">Crear usuario</button><div id="nu-msg"></div></div><div class="card"><h2>Usuarios</h2><table><thead><tr><th>Usuario</th><th>Rol</th><th>Centro</th><th>Activo</th><th></th></tr></thead><tbody>${(users||[]).map(u=>`<tr><td>${u.username}</td><td>${u.role}</td><td>${u.centers?.name||'—'}</td><td>${u.active?'✅':'❌'}</td><td><button class="ghost" style="width:auto;padding:4px 8px" onclick="toggleUser('${u.id}',${!u.active})">${u.active?'Desactivar':'Activar'}</button></td></tr>`).join('')||'<tr><td colspan=5 style="color:#64748b">Sin usuarios</td></tr>'}</tbody></table></div>`;
 }
 async function createUser(){
   const username = document.getElementById('nu-user').value.trim();
@@ -311,90 +199,50 @@ async function createUser(){
   if (role==='operator' && !center_id) return msg.innerHTML='<div class="alert err">Un operador necesita centro</div>';
 
   const salt = b64.enc(crypto.getRandomValues(new Uint8Array(16)));
-  const password_hash = await hashPassword(password, salt);
-  const { error } = await sb.from('users').insert({username, password_hash, salt, role, center_id});
+  const password_hash = await hashPassword(password,salt);
+  const {error} = await sb.from('users').insert({username,password_hash,salt,role,center_id});
   if (error) return msg.innerHTML=`<div class="alert err">${error.message}</div>`;
   msg.innerHTML='<div class="alert ok">Usuario creado</div>';
   await audit('CREATE_USER','user',null,{username,role,center_id});
-  setTimeout(()=>renderUsers(document.getElementById('tab-content')), 800);
+  setTimeout(()=>renderUsers(document.getElementById('tab-content')),800);
 }
-async function toggleUser(id, active){
-  await sb.from('users').update({active}).eq('id', id);
+async function toggleUser(id,active){
+  await sb.from('users').update({active}).eq('id',id);
   await audit(active?'ACTIVATE_USER':'DEACTIVATE_USER','user',id,{active});
   renderUsers(document.getElementById('tab-content'));
 }
 
-/* ============================================================
-   ADMIN — INVENTARIO GLOBAL (descifra todo)
-   ============================================================ */
 async function renderGlobal(c){
   c.innerHTML = '<div class="card"><h2>Cargando inventario global…</h2></div>';
-  const { data: products } = await sb.from('products').select('*,centers(name)');
-  const { data: movements } = await sb.from('movements').select('*,products(barcode),centers(name)');
-
-  // Para descifrar como admin necesitamos la centerKey de cada centro.
-  // En un sistema real: admin guarda "center secrets" cifradas con su master key.
-  // Aquí: admin usa su password para derivar una master key que descifra todo.
-  // (Ver nota de arquitectura abajo sobre "center secret")
-  const masterKey = await deriveKey(session.password, `admin:${session.user.salt}`);
-
+  const {data:products} = await sb.from('products').select('*,centers(name)');
+  const {data:movements} = await sb.from('movements').select('*,products(barcode),centers(name)');
+  const masterKey = await deriveKey(session.password,`admin:${session.user.salt}`);
   const rows = [];
   for (const p of products||[]) {
     try {
-      const payload = JSON.parse(await aesDecrypt(masterKey, p.iv, p.encrypted_payload));
+      const payload = JSON.parse(await aesDecrypt(masterKey,p.iv,p.encrypted_payload));
       const stock = (movements||[]).filter(m=>m.product_id===p.id).reduce((a,m)=>{
-        const mp = JSON.parse(await aesDecrypt(masterKey, m.iv, m.encrypted_payload).catch(()=>'{"qty":0}'));
-        return a + (m.type==='in'?mp.qty:m.type==='out'?-mp.qty:mp.qty);
-      }, 0);
-      rows.push({name:payload.name, barcode:p.barcode||'—', center:p.centers?.name, stock});
+        try {
+          const mp = JSON.parse(await aesDecrypt(masterKey,m.iv,m.encrypted_payload));
+          return a + (m.type==='in'?mp.qty:m.type==='out'?-mp.qty:mp.qty);
+        } catch(e) { return a; }
+      },0);
+      rows.push({name:payload.name,barcode:p.barcode||'—',center:p.centers?.name,stock});
     } catch(e){ rows.push({name:'[cifrado]',barcode:p.barcode,center:p.centers?.name,stock:'?'}); }
   }
-  c.innerHTML = `<div class="card"><h2>Inventario global (${rows.length})</h2>
-    <table><thead><tr><th>Producto</th><th>Código</th><th>Centro</th><th>Stock</th></tr></thead>
-    <tbody>${rows.map(r=>`<tr><td>${r.name}</td><td class="mono">${r.barcode}</td><td>${r.center}</td><td>${r.stock}</td></tr>`).join('')||'<tr><td colspan=4 style="color:#64748b">Vacío</td></tr>'}</tbody></table>
-    </div>`;
+  c.innerHTML = `<div class="card"><h2>Inventario global (${rows.length})</h2><table><thead><tr><th>Producto</th><th>Código</th><th>Centro</th><th>Stock</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.name}</td><td class="mono">${r.barcode}</td><td>${r.center}</td><td>${r.stock}</td></tr>`).join('')||'<tr><td colspan=4 style="color:#64748b">Vacío</td></tr>'}</tbody></table></div>`;
 }
 
-/* ============================================================
-   OPERADOR — PRODUCTOS
-   ============================================================ */
 async function renderProducts(c){
-  const { data } = await sb.from('products').select('*').eq('center_id', session.centerId).order('updated_at',{ascending:false});
+  const {data} = await sb.from('products').select('*').eq('center_id',session.centerId).order('updated_at',{ascending:false});
   const rows = [];
   for (const p of data||[]) {
     try {
-      const payload = JSON.parse(await aesDecrypt(session.centerKey, p.iv, p.encrypted_payload));
-      rows.push({...p, ...payload});
-    } catch(e){ rows.push({...p, name:'[error descifrado]'}); }
+      const payload = JSON.parse(await aesDecrypt(session.centerKey,p.iv,p.encrypted_payload));
+      rows.push({...p,...payload});
+    } catch(e){ rows.push({...p,name:'[error descifrado]'}); }
   }
-  c.innerHTML = `
-    <div class="card">
-      <h2>Nuevo / Editar producto</h2>
-      <input type="hidden" id="p-id">
-      <div class="row">
-        <div><label>Código de barras</label><input id="p-barcode"></div>
-        <div><label>Nombre</label><input id="p-name"></div>
-      </div>
-      <div class="row">
-        <div><label>Unidad</label><select id="p-unit"><option>unidad</option><option>kg</option><option>litro</option><option>caja</option><option>paquete</option></select></div>
-        <div><label>Categoría</label><input id="p-cat" placeholder="alimento, abrigo, higiene…"></div>
-      </div>
-      <label>Descripción / notas</label><textarea id="p-desc" rows="2"></textarea>
-      <div style="display:flex;gap:8px">
-        <button onclick="saveProduct()">Guardar</button>
-        <button class="ghost" onclick="clearProductForm()">Limpiar</button>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Productos (${rows.length})</h2>
-      <input placeholder="Buscar…" oninput="filterProducts(this.value)">
-      <table id="tbl-products"><thead><tr><th>Código</th><th>Nombre</th><th>Unidad</th><th>Cat.</th><th></th></tr></thead>
-      <tbody>${rows.map(r=>`<tr data-search="${(r.barcode+r.name+r.cat).toLowerCase()}">
-        <td class="mono">${r.barcode||'—'}</td><td>${r.name}</td><td>${r.unit}</td><td>${r.cat||''}</td>
-        <td><button class="ghost" style="width:auto;padding:4px 8px" onclick='editProduct(${JSON.stringify(r).replace(/'/g,"&#39;")})'>Editar</button>
-        <button class="danger" style="width:auto;padding:4px 8px" onclick="delProduct('${r.id}')">🗑</button></td>
-      </tr>`).join('')||'<tr><td colspan=5 style="color:#64748b">Sin productos</td></tr>'}</tbody></table>
-    </div>`;
+  c.innerHTML = `<div class="card"><h2>Nuevo / Editar producto</h2><input type="hidden" id="p-id"><div class="row"><div><label>Código de barras</label><input id="p-barcode"></div><div><label>Nombre</label><input id="p-name"></div></div><div class="row"><div><label>Unidad</label><select id="p-unit"><option>unidad</option><option>kg</option><option>litro</option><option>caja</option><option>paquete</option></select></div><div><label>Categoría</label><input id="p-cat" placeholder="alimento, abrigo, higiene…"></div></div><label>Descripción / notas</label><textarea id="p-desc" rows="2"></textarea><div style="display:flex;gap:8px"><button onclick="saveProduct()">Guardar</button><button class="ghost" onclick="clearProductForm()">Limpiar</button></div></div><div class="card"><h2>Productos (${rows.length})</h2><input placeholder="Buscar…" oninput="filterProducts(this.value)"><table id="tbl-products"><thead><tr><th>Código</th><th>Nombre</th><th>Unidad</th><th>Cat.</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr data-search="${(r.barcode+r.name+r.cat).toLowerCase()}"><td class="mono">${r.barcode||'—'}</td><td>${r.name}</td><td>${r.unit}</td><td>${r.cat||''}</td><td><button class="ghost" style="width:auto;padding:4px 8px" onclick='editProduct(${JSON.stringify(r).replace(/'/g,"&#39;")})'>Editar</button><button class="danger" style="width:auto;padding:4px 8px" onclick="delProduct('${r.id}')">🗑</button></td></tr>`).join('')||'<tr><td colspan=5 style="color:#64748b">Sin productos</td></tr>'}</tbody></table></div>`;
 }
 function filterProducts(q){
   q = q.toLowerCase();
@@ -415,24 +263,24 @@ function clearProductForm(){ ['p-id','p-barcode','p-name','p-cat','p-desc'].forE
 async function saveProduct(){
   const id = document.getElementById('p-id').value;
   const payload = {
-    name: document.getElementById('p-name').value.trim(),
-    unit: document.getElementById('p-unit').value,
-    cat: document.getElementById('p-cat').value.trim(),
-    desc: document.getElementById('p-desc').value.trim()
+    name:document.getElementById('p-name').value.trim(),
+    unit:document.getElementById('p-unit').value,
+    cat:document.getElementById('p-cat').value.trim(),
+    desc:document.getElementById('p-desc').value.trim()
   };
   const barcode = document.getElementById('p-barcode').value.trim() || null;
   if (!payload.name) return alert('Nombre requerido');
 
-  const { iv, ct } = await aesEncrypt(session.centerKey, JSON.stringify(payload));
-  const row = { center_id: session.centerId, barcode, encrypted_payload: ct, iv, updated_at: new Date().toISOString() };
+  const {iv,ct} = await aesEncrypt(session.centerKey,JSON.stringify(payload));
+  const row = {center_id:session.centerId,barcode,encrypted_payload:ct,iv,updated_at:new Date().toISOString()};
 
   if (id) {
-    const { error } = await sb.from('products').update(row).eq('id', id);
+    const {error} = await sb.from('products').update(row).eq('id',id);
     if (error) return alert(error.message);
     await audit('UPDATE_PRODUCT','product',id,payload);
   } else {
     row.created_by = session.user.id;
-    const { data, error } = await sb.from('products').insert(row).select().single();
+    const {data,error} = await sb.from('products').insert(row).select().single();
     if (error) return alert(error.message);
     await audit('CREATE_PRODUCT','product',data.id,payload);
   }
@@ -441,64 +289,36 @@ async function saveProduct(){
 }
 async function delProduct(id){
   if (!confirm('¿Eliminar producto? Se conservará en auditoría.')) return;
-  await sb.from('products').delete().eq('id', id);
+  await sb.from('products').delete().eq('id',id);
   await audit('DELETE_PRODUCT','product',id,{});
   renderProducts(document.getElementById('tab-content'));
 }
 
-/* ============================================================
-   OPERADOR — MOVIMIENTOS DE STOCK
-   ============================================================ */
 async function renderStock(c){
-  const { data: products } = await sb.from('products').select('*').eq('center_id', session.centerId);
+  const {data:products} = await sb.from('products').select('*').eq('center_id',session.centerId);
   const prods = [];
   for (const p of products||[]) {
-    try { const pl = JSON.parse(await aesDecrypt(session.centerKey, p.iv, p.encrypted_payload)); prods.push({id:p.id, barcode:p.barcode, name:pl.name}); } catch(e){}
+    try { const pl = JSON.parse(await aesDecrypt(session.centerKey,p.iv,p.encrypted_payload)); prods.push({id:p.id,barcode:p.barcode,name:pl.name}); } catch(e){}
   }
-  const { data: movs } = await sb.from('movements').select('*').eq('center_id', session.centerId).order('created_at',{ascending:false}).limit(100);
+  window._prodsCache = prods;
+  const {data:movs} = await sb.from('movements').select('*').eq('center_id',session.centerId).order('created_at',{ascending:false}).limit(100);
   const movsDec = [];
   for (const m of movs||[]) {
     try {
-      const pl = JSON.parse(await aesDecrypt(session.centerKey, m.iv, m.encrypted_payload));
+      const pl = JSON.parse(await aesDecrypt(session.centerKey,m.iv,m.encrypted_payload));
       const prod = prods.find(p=>p.id===m.product_id);
-      movsDec.push({...m, ...pl, productName: prod?.name||'?', barcode: prod?.barcode||''});
+      movsDec.push({...m,...pl,productName:prod?.name||'?',barcode:prod?.barcode||''});
     } catch(e){}
   }
 
-  c.innerHTML = `
-    <div class="card">
-      <h2>Registrar movimiento</h2>
-      <label>Producto (escanea o busca)</label>
-      <input id="m-barcode" placeholder="Código de barras o nombre" oninput="searchProd(this.value)">
-      <input type="hidden" id="m-product-id">
-      <div id="m-prod-sel" style="color:#38bdf8;margin-bottom:8px"></div>
-      <div class="row">
-        <div><label>Tipo</label><select id="m-type"><option value="in">⬇ Ingreso</option><option value="out">⬆ Despacho/Salida</option><option value="adjust">🔧 Ajuste</option></select></div>
-        <div><label>Cantidad</label><input id="m-qty" type="number" min="0" step="any"></div>
-      </div>
-      <label>Motivo / notas</label><textarea id="m-notes" rows="2"></textarea>
-      <button onclick="saveMovement()">Registrar movimiento</button>
-    </div>
-    <div class="card">
-      <h2>Últimos movimientos</h2>
-      <table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Notas</th></tr></thead>
-      <tbody>${movsDec.map(m=>`<tr>
-        <td>${new Date(m.created_at).toLocaleString()}</td>
-        <td>${m.productName}<br><span class="mono" style="color:#64748b">${m.barcode}</span></td>
-        <td><span class="badge b-${m.type==='in'?'in':m.type==='out'?'out':'adj'}">${m.type}</span></td>
-        <td>${m.qty}</td><td>${m.notes||''}</td>
-      </tr>`).join('')||'<tr><td colspan=5 style="color:#64748b">Sin movimientos</td></tr>'}</tbody></table>
-    </div>`;
+  c.innerHTML = `<div class="card"><h2>Registrar movimiento</h2><label>Producto (escanea o busca)</label><input id="m-barcode" placeholder="Código de barras o nombre" oninput="searchProd(this.value)"><input type="hidden" id="m-product-id"><div id="m-prod-sel" style="color:#38bdf8;margin-bottom:8px"></div><div class="row"><div><label>Tipo</label><select id="m-type"><option value="in">⬇ Ingreso</option><option value="out">⬆ Despacho/Salida</option><option value="adjust">🔧 Ajuste</option></select></div><div><label>Cantidad</label><input id="m-qty" type="number" min="0" step="any"></div></div><label>Motivo / notas</label><textarea id="m-notes" rows="2"></textarea><button onclick="saveMovement()">Registrar movimiento</button></div><div class="card"><h2>Últimos movimientos</h2><table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Notas</th></tr></thead><tbody>${movsDec.map(m=>`<tr><td>${new Date(m.created_at).toLocaleString()}</td><td>${m.productName}<br><span class="mono" style="color:#64748b">${m.barcode}</span></td><td><span class="badge b-${m.type==='in'?'in':m.type==='out'?'out':'adj'}">${m.type}</span></td><td>${m.qty}</td><td>${m.notes||''}</td></tr>`).join('')||'<tr><td colspan=5 style="color:#64748b">Sin movimientos</td></tr>'}</tbody></table></div>`;
 }
 function searchProd(q){
   q = q.toLowerCase();
   const sel = document.getElementById('m-prod-sel');
   if (!q) { sel.innerHTML=''; return; }
-  // buscar en prods cacheados globalmente
   window._prodsCache = window._prodsCache || [];
-  const matches = window._prodsCache.filter(p =>
-    (p.barcode||'').toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
-  ).slice(0,5);
+  const matches = window._prodsCache.filter(p => (p.barcode||'').toLowerCase().includes(q) || p.name.toLowerCase().includes(q)).slice(0,5);
   sel.innerHTML = matches.map(p=>`<div style="cursor:pointer;padding:4px;border-bottom:1px solid #334155" onclick="pickProd('${p.id}','${p.name.replace(/'/g,"\\'")}','${p.barcode||''}')">${p.barcode||'—'} · ${p.name}</div>`).join('') || '<span style="color:#64748b">Sin coincidencias</span>';
 }
 function pickProd(id,name,barcode){
@@ -506,19 +326,6 @@ function pickProd(id,name,barcode){
   document.getElementById('m-barcode').value = barcode||name;
   document.getElementById('m-prod-sel').innerHTML = `✅ Seleccionado: <b>${name}</b>`;
 }
-// cargar cache al entrar
-(async function cacheProds(){
-  const wait = setInterval(async ()=>{
-    if (!session || session.role!=='operator') return;
-    const { data } = await sb.from('products').select('*').eq('center_id', session.centerId);
-    const arr = [];
-    for (const p of data||[]) {
-      try { const pl = JSON.parse(await aesDecrypt(session.centerKey, p.iv, p.encrypted_payload)); arr.push({id:p.id, barcode:p.barcode, name:pl.name}); } catch(e){}
-    }
-    window._prodsCache = arr;
-    clearInterval(wait);
-  }, 500);
-})();
 
 async function saveMovement(){
   const product_id = document.getElementById('m-product-id').value;
@@ -526,57 +333,17 @@ async function saveMovement(){
   const qty = parseFloat(document.getElementById('m-qty').value);
   const notes = document.getElementById('m-notes').value.trim();
   if (!product_id || !qty || qty<=0) return alert('Producto y cantidad requeridos');
-  const payload = { qty, notes };
-  const { iv, ct } = await aesEncrypt(session.centerKey, JSON.stringify(payload));
-  const { error } = await sb.from('movements').insert({
-    center_id: session.centerId, product_id, type,
-    encrypted_payload: ct, iv, created_by: session.user.id
-  });
+  const payload = {qty,notes};
+  const {iv,ct} = await aesEncrypt(session.centerKey,JSON.stringify(payload));
+  const {error} = await sb.from('movements').insert({center_id:session.centerId,product_id,type,encrypted_payload:ct,iv,created_by:session.user.id});
   if (error) return alert(error.message);
   await audit('STOCK_'+type.toUpperCase(),'movement',product_id,payload);
   renderStock(document.getElementById('tab-content'));
 }
 
-/* ============================================================
-   ESCÁNER (cámara en móvil, teclado en PC con lector USB)
-   ============================================================ */
-let scanner = null;
 async function renderScan(c){
-  c.innerHTML = `
-    <div class="card">
-      <h2>Escanear código de barras</h2>
-      <p style="color:#94a3b8;font-size:.85rem;margin-bottom:8px">
-        📱 Móvil: usa la cámara. 💻 PC con lector USB: enfoca el campo "Lector USB" y escanea.
-      </p>
-      <div id="scanner-box"></div>
-      <div style="margin-top:12px">
-        <button onclick="startScanner()">📷 Iniciar cámara</button>
-        <button class="ghost" onclick="stopScanner()">Detener</button>
-      </div>
-      <hr style="margin:16px 0;border-color:#334155">
-      <label>Lector USB / entrada manual</label>
-      <input id="usb-barcode" autofocus onkeydown="if(event.key==='Enter')lookupBarcode(this.value)">
-      <div id="scan-result" style="margin-top:12px"></div>
-    </div>`;
+  c.innerHTML = `<div class="card"><h2>Escanear código de barras</h2><p style="color:#94a3b8;font-size:.85rem;margin-bottom:8px">📱 Móvil: usa la cámara. 💻 PC con lector USB: enfoca el campo y escanea.</p><hr style="margin:16px 0;border-color:#334155"><label>Lector USB / entrada manual</label><input id="usb-barcode" autofocus onkeydown="if(event.key==='Enter')lookupBarcode(this.value)"><div id="scan-result" style="margin-top:12px"></div></div>`;
 }
-async function startScanner(){
-  if (scanner) return;
-  // Cargar html5-qrcode dinámicamente
-  if (!window.Html5Qrcode) {
-    await new Promise((res,rej)=>{
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
-      s.onload = res; s.onerror = rej; document.head.appendChild(s);
-    });
-  }
-  scanner = new Html5Qrcode('scanner-box');
-  try {
-    await scanner.start({facingMode:'environment'}, {fps:10, qrbox:250},
-      (text)=>{ stopScanner(); lookupBarcode(text); },
-      ()=>{});
-  } catch(e){ alert('No se pudo acceder a la cámara: '+e); }
-}
-function stopScanner(){ if (scanner) scanner.stop().then(()=>{scanner=null}).catch(()=>{}); }
 
 async function lookupBarcode(code){
   code = code.trim();
@@ -589,62 +356,37 @@ async function lookupBarcode(code){
     res.innerHTML = `<div class="alert err">Código <b>${code}</b> no encontrado. <button style="width:auto;padding:4px 10px" onclick="goCreateWithBarcode('${code}')">Crear producto</button></div>`;
     return;
   }
-  res.innerHTML = `<div class="alert ok">✅ <b>${p.name}</b> (${p.barcode})<br>
-    <button style="width:auto;padding:6px 12px;margin-top:8px" onclick="quickStock('${p.id}','in')">⬇ Ingreso rápido</button>
-    <button class="danger" style="width:auto;padding:6px 12px;margin-top:8px" onclick="quickStock('${p.id}','out')">⬆ Despacho rápido</button>
-    <button class="ghost" style="width:auto;padding:6px 12px;margin-top:8px" onclick="switchTab('stock')">Ir a movimientos</button>
-    </div>`;
+  res.innerHTML = `<div class="alert ok">✅ <b>${p.name}</b> (${p.barcode})<br><button style="width:auto;padding:6px 12px;margin-top:8px" onclick="quickStock('${p.id}','in')">⬇ Ingreso rápido</button><button class="danger" style="width:auto;padding:6px 12px;margin-top:8px" onclick="quickStock('${p.id}','out')">⬆ Despacho rápido</button><button class="ghost" style="width:auto;padding:6px 12px;margin-top:8px" onclick="switchTab('stock')">Ir a movimientos</button></div>`;
 }
 function goCreateWithBarcode(code){ switchTab('products'); setTimeout(()=>{document.getElementById('p-barcode').value=code;},100); }
-function quickStock(pid, type){
+function quickStock(pid,type){
   switchTab('stock');
   setTimeout(()=>{
     const p = window._prodsCache.find(x=>x.id===pid);
-    if (p) pickProd(p.id, p.name, p.barcode);
+    if (p) pickProd(p.id,p.name,p.barcode);
     document.getElementById('m-type').value = type;
     document.getElementById('m-qty').focus();
-  }, 150);
+  },150);
 }
 
-/* ============================================================
-   AUDITORÍA (con verificación de hash chain)
-   ============================================================ */
 async function renderAudit(c){
   const q = sb.from('audit_log').select('*');
-  const query = session.role==='admin' ? q : q.eq('center_id', session.centerId);
-  const { data } = await query.order('id',{ascending:false}).limit(500);
+  const query = session.role==='admin' ? q : q.eq('center_id',session.centerId);
+  const {data} = await query.order('id',{ascending:false}).limit(500);
 
-  // Verificar cadena
   let chainOk = true, brokenAt = null;
   const sorted = [...(data||[])].sort((a,b)=>a.id-b.id);
   let prev = '0';
   for (const row of sorted) {
     const expectedPrev = prev;
     if (row.prev_hash !== expectedPrev) { chainOk = false; brokenAt = row.id; break; }
-    // verificar firma
     const chainInput = row.prev_hash + '|' + row.payload_hash;
-    const expected = await hmacSign(AUDIT_HMAC_SEED + ':' + row.center_id, chainInput);
+    const expected = await hmacSign(AUDIT_HMAC_SEED+':'+row.center_id,chainInput);
     if (expected !== row.signature) { chainOk = false; brokenAt = row.id; break; }
     prev = row.payload_hash;
   }
 
-  c.innerHTML = `
-    <div class="card">
-      <h2>Integridad de auditoría</h2>
-      <div class="alert ${chainOk?'ok':'err'}">
-        ${chainOk ? '✅ Cadena íntegra — no se detectó manipulación' : `⚠️ Cadena ROTAs en registro #${brokenAt}. Posible manipulación.`}
-      </div>
-      <button class="ghost" onclick="exportAudit()">📥 Exportar CSV</button>
-    </div>
-    <div class="card">
-      <h2>Registros (${(data||[]).length})</h2>
-      <table><thead><tr><th>#</th><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Target</th></tr></thead>
-      <tbody>${(data||[]).map(r=>`<tr>
-        <td>${r.id}</td><td>${new Date(r.created_at).toLocaleString()}</td>
-        <td>${r.user_id?.slice(0,8)||'?'}</td><td><b>${r.action}</b></td>
-        <td class="mono">${r.target_type||''} ${r.target_id?.slice(0,8)||''}</td>
-      </tr>`).join('')||'<tr><td colspan=5 style="color:#64748b">Vacío</td></tr>'}</tbody></table>
-    </div>`;
+  c.innerHTML = `<div class="card"><h2>Integridad de auditoría</h2><div class="alert ${chainOk?'ok':'err'}">${chainOk ? '✅ Cadena íntegra — no se detectó manipulación' : `⚠️ Cadena ROTA en registro #${brokenAt}. Posible manipulación.`}</div><button class="ghost" onclick="exportAudit()">📥 Exportar CSV</button></div><div class="card"><h2>Registros (${(data||[]).length})</h2><table><thead><tr><th>#</th><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Target</th></tr></thead><tbody>${(data||[]).map(r=>`<tr><td>${r.id}</td><td>${new Date(r.created_at).toLocaleString()}</td><td>${r.user_id?.slice(0,8)||'?'}</td><td><b>${r.action}</b></td><td class="mono">${r.target_type||''} ${r.target_id?.slice(0,8)||''}</td></tr>`).join('')||'<tr><td colspan=5 style="color:#64748b">Vacío</td></tr>'}</tbody></table></div>`;
   window._auditData = data;
 }
 function exportAudit(){
@@ -655,26 +397,6 @@ function exportAudit(){
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `audit_${Date.now()}.csv`; a.click();
-}
-
-/* ============================================================
-   PWA — Service Worker inline
-   ============================================================ */
-if ('serviceWorker' in navigator) {
-  const swCode = `
-    const C='inv-v1';
-    self.addEventListener('install',e=>self.skipWaiting());
-    self.addEventListener('activate',e=>self.clients.claim());
-    self.addEventListener('fetch',e=>{
-      if (e.request.method!=='GET') return;
-      e.respondWith(caches.open(C).then(async c=>{
-        const cached = await c.match(e.request);
-        const net = fetch(e.request).then(r=>{c.put(e.request,r.clone());return r}).catch(()=>cached);
-        return cached || net;
-      }));
-    });`;
-  const blob = new Blob([swCode],{type:'application/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
 }
 </script>
 </body>
