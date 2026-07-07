@@ -35,6 +35,7 @@ th{color:#94a3b8;font-weight:600}
 .alert.err{background:#7f1d1d;color:#fecaca}
 .alert.ok{background:#065f46;color:#a7f3d0}
 .mono{font-family:ui-monospace,Menlo,monospace;font-size:.8rem}
+#scanner-reader{width:100%;max-width:400px;margin:0 auto}
 </style>
 </head>
 <body>
@@ -72,9 +73,9 @@ th{color:#94a3b8;font-weight:600}
 // ============================================
 // CONFIGURACIÓN - CAMBIA ESTO
 // ============================================
-const SUPABASE_URL = 'https://ajhubmxofzfdelxbgjjf.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzQzMTA5MiwiZXhwIjoyMDk5MDA3MDkyfQ.uKLflDZbrjS9CsRgRfAFIR4PTDQ1ezzt_Ya-3nQu4-A';
-const AUDIT_HMAC_SEED = '526afbf36237f4a802b469b2d264c68867eb5c32594b874791722761fcae8105';
+const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
+const SUPABASE_ANON = 'TU-ANON-KEY';
+const AUDIT_HMAC_SEED = 'cambia-esta-semilla-por-una-aleatoria-larga';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let session = null;
@@ -490,7 +491,7 @@ async function renderProducts(c) {
           <td>${r.cat||''}</td>
           <td>
             <button class="ghost btn-edit-product" data-idx="${idx}" style="width:auto;padding:4px 8px">Editar</button>
-            <button class="danger btn-del-product" data-id="${r.id}" style="width:auto;padding:4px 8px">🗑</button>
+            <button class="danger btn-del-product" data-id="${r.id}" style="width:auto;padding:4px 8px"></button>
           </td>
         </tr>
       `;
@@ -536,7 +537,6 @@ async function renderProducts(c) {
     </div>
   `;
   
-  // Guardar productos en cache global
   window._productsCache = rows;
   
   document.getElementById('btn-save-product').onclick = saveProduct;
@@ -679,7 +679,7 @@ async function renderStock(c) {
           <label>Tipo</label>
           <select id="m-type">
             <option value="in">⬇ Ingreso</option>
-            <option value="out">⬆ Despacho/Salida</option>
+            <option value="out"> Despacho/Salida</option>
             <option value="adjust">🔧 Ajuste</option>
           </select>
         </div>
@@ -719,12 +719,14 @@ function searchProd(q) {
   ).slice(0, 5);
   
   if (matches.length > 0) {
-    sel.innerHTML = matches.map(p => `
-      <div style="cursor:pointer;padding:4px;border-bottom:1px solid #334155" 
-           onclick="pickProd('${p.id}', '${p.name.replace(/'/g, "\\'")}', '${p.barcode||''}')">
-        ${p.barcode||'—'} · ${p.name}
-      </div>
-    `).join('');
+    sel.innerHTML = matches.map(p => {
+      const nameEscaped = p.name.replace(/'/g, "\\'");
+      return `<div style="cursor:pointer;padding:4px;border-bottom:1px solid #334155" class="pick-prod-item" data-id="${p.id}" data-name="${nameEscaped}" data-barcode="${p.barcode||''}">${p.barcode||'—'} · ${p.name}</div>`;
+    }).join('');
+    
+    document.querySelectorAll('.pick-prod-item').forEach(item => {
+      item.onclick = () => pickProd(item.dataset.id, item.dataset.name, item.dataset.barcode);
+    });
   } else {
     sel.innerHTML = '<span style="color:#64748b">Sin coincidencias</span>';
   }
@@ -764,8 +766,10 @@ async function saveMovement() {
 }
 
 // ============================================
-// ESCÁNER
+// ESCÁNER DE CÓDIGO DE BARRAS
 // ============================================
+let html5Qrcode = null;
+
 async function renderScan(c) {
   c.innerHTML = `
     <div class="card">
@@ -775,10 +779,10 @@ async function renderScan(c) {
       </p>
       
       <div id="scanner-section">
-        <div id="scanner-reader" style="width:100%;max-width:400px;margin:0 auto"></div>
+        <div id="scanner-reader"></div>
         <div style="display:flex;gap:8px;margin-top:12px;justify-content:center">
           <button id="btn-start-camera" style="width:auto;padding:8px 16px">📷 Iniciar cámara</button>
-          <button id="btn-stop-camera" class="ghost" style="width:auto;padding:8px 16px">⏹ Detener</button>
+          <button id="btn-stop-camera" class="ghost" style="width:auto;padding:8px 16px;display:none">⏹ Detener</button>
         </div>
       </div>
       
@@ -816,8 +820,6 @@ async function renderScan(c) {
   };
 }
 
-let html5Qrcode = null;
-
 async function startCamera() {
   if (!window.Html5Qrcode) {
     alert('El escáner aún se está cargando. Espera un momento.');
@@ -825,13 +827,12 @@ async function startCamera() {
   }
   
   if (html5Qrcode && html5Qrcode.isScanning) {
-    return; // Ya está escaneando
+    return;
   }
   
   try {
     html5Qrcode = new Html5Qrcode('scanner-reader');
     
-    // Configurar escáner para códigos de barras (no solo QR)
     const config = {
       fps: 10,
       qrbox: { width: 250, height: 150 },
@@ -850,17 +851,13 @@ async function startCamera() {
     };
     
     await html5Qrcode.start(
-      { facingMode: 'environment' }, // Cámara trasera en móviles
+      { facingMode: 'environment' },
       config,
       (decodedText) => {
-        // Código escaneado exitosamente
         stopCamera();
         lookupBarcode(decodedText);
       },
-      (errorMessage) => {
-        // Ignorar errores de escaneo continuo (solo log en consola)
-        // console.log(errorMessage);
-      }
+      (errorMessage) => {}
     );
     
     document.getElementById('btn-start-camera').style.display = 'none';
@@ -896,13 +893,7 @@ async function stopCamera() {
   const stopBtn = document.getElementById('btn-stop-camera');
   
   if (startBtn) startBtn.style.display = 'inline-block';
-  if (stopBtn) stopBtn.style.display = 'inline-block';
-}
-  `;
-  
-  document.getElementById('usb-barcode').onkeydown = (e) => {
-    if (e.key === 'Enter') lookupBarcode(e.target.value);
-  };
+  if (stopBtn) stopBtn.style.display = 'none';
 }
 
 async function lookupBarcode(code) {
@@ -918,7 +909,7 @@ async function lookupBarcode(code) {
     res.innerHTML = `
       <div class="alert err">
         Código <b>${code}</b> no encontrado.
-        <button id="btn-create-barcode" style="width:auto;padding:4px 10px">Crear producto</button>
+        <button id="btn-create-barcode" style="width:auto;padding:4px 10px;margin-top:8px">Crear producto</button>
       </div>
     `;
     document.getElementById('btn-create-barcode').onclick = () => goCreateWithBarcode(code);
@@ -929,7 +920,7 @@ async function lookupBarcode(code) {
     <div class="alert ok">
       ✅ <b>${p.name}</b> (${p.barcode})<br>
       <button id="btn-quick-in" style="width:auto;padding:6px 12px;margin-top:8px">⬇ Ingreso rápido</button>
-      <button id="btn-quick-out" class="danger" style="width:auto;padding:6px 12px;margin-top:8px">⬆ Despacho rápido</button>
+      <button id="btn-quick-out" class="danger" style="width:auto;padding:6px 12px;margin-top:8px"> Despacho rápido</button>
       <button id="btn-go-stock" class="ghost" style="width:auto;padding:6px 12px;margin-top:8px">Ir a movimientos</button>
     </div>
   `;
@@ -991,7 +982,7 @@ async function renderAudit(c) {
   const alertClass = chainOk ? 'ok' : 'err';
   const alertMsg = chainOk 
     ? '✅ Cadena íntegra — no se detectó manipulación'
-    : `️ Cadena ROTA en registro #${brokenAt}. Posible manipulación.`;
+    : `⚠️ Cadena ROTA en registro #${brokenAt}. Posible manipulación.`;
 
   let auditRows = '';
   if (data && data.length > 0) {
