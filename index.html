@@ -73,9 +73,9 @@ th{color:#94a3b8;font-weight:600}
 // ============================================
 // CONFIGURACIÓN - CAMBIA ESTO
 // ============================================
-const SUPABASE_URL = 'https://ajhubmxofzfdelxbgjjf.supabase.co/rest/v1/';
+const SUPABASE_URL = 'httpsajhubmxofzfdelxbgjjf.supabase.corestv1';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzQzMTA5MiwiZXhwIjoyMDk5MDA3MDkyfQ.uKLflDZbrjS9CsRgRfAFIR4PTDQ1ezzt_Ya-3nQu4-A';
-const AUDIT_HMAC_SEED = 'cambia-esta-semilla-por-una-aleatoria-larga';
+const AUDIT_HMAC_SEED = 'c30fa9712a88c911b61327205a1b279ff13afa40f629294ff22a0573386890a8';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let session = null;
@@ -491,7 +491,7 @@ async function renderProducts(c) {
           <td>${r.cat||''}</td>
           <td>
             <button class="ghost btn-edit-product" data-idx="${idx}" style="width:auto;padding:4px 8px">Editar</button>
-            <button class="danger btn-del-product" data-id="${r.id}" style="width:auto;padding:4px 8px"></button>
+            <button class="danger btn-del-product" data-id="${r.id}" style="width:auto;padding:4px 8px">🗑</button>
           </td>
         </tr>
       `;
@@ -679,7 +679,7 @@ async function renderStock(c) {
           <label>Tipo</label>
           <select id="m-type">
             <option value="in">⬇ Ingreso</option>
-            <option value="out"> Despacho/Salida</option>
+            <option value="out">⬆ Despacho/Salida</option>
             <option value="adjust">🔧 Ajuste</option>
           </select>
         </div>
@@ -920,7 +920,7 @@ async function lookupBarcode(code) {
     <div class="alert ok">
       ✅ <b>${p.name}</b> (${p.barcode})<br>
       <button id="btn-quick-in" style="width:auto;padding:6px 12px;margin-top:8px">⬇ Ingreso rápido</button>
-      <button id="btn-quick-out" class="danger" style="width:auto;padding:6px 12px;margin-top:8px"> Despacho rápido</button>
+      <button id="btn-quick-out" class="danger" style="width:auto;padding:6px 12px;margin-top:8px">⬆ Despacho rápido</button>
       <button id="btn-go-stock" class="ghost" style="width:auto;padding:6px 12px;margin-top:8px">Ir a movimientos</button>
     </div>
   `;
