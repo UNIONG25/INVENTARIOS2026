@@ -1,92 +1,108 @@
-<!-- ... (Mantén todo tu CSS igual hasta la sección de MOVIMIENTOS) ... -->
-
-<!-- ============================================
-// AJUSTE: MOVIMIENTOS DE STOCK (Integrado con nueva migración)
-// ============================================ -->
-async function renderStock(c) {
-  // 1. Obtenemos productos de la tabla 'products'
-  const {data:products} = await sb.from('products').select('*').eq('center_id', session.centerId);
-  const prods = [];
-  
-  for (const p of products||[]) {
-    try {
-      const pl = JSON.parse(await aesDecrypt(session.centerKey, p.iv, p.encrypted_payload));
-      prods.push({id:p.id, barcode:p.barcode, name:pl.name});
-    } catch(e) {}
-  }
-  window._prodsCache = prods;
-  
-  // 2. Obtenemos movimientos de nuestra nueva tabla migrada 'movements'
-  // Nota: Ahora los campos son quantity y entity_name, adaptamos la lógica
-  const {data:movs} = await sb.from('movements')
-    .select('*, items(name)')
-    .eq('center_id', session.centerId)
-    .order('movement_date', {ascending:false})
-    .limit(100);
-  
-  let movsRows = '';
-  if (movs && movs.length > 0) {
-    movs.forEach(m => {
-      const badgeClass = m.type === 'entrada' ? 'b-in' : 'b-out';
-      movsRows += `
-        <tr>
-          <td>${new Date(m.movement_date).toLocaleString()}</td>
-          <td>${m.items?.name || 'Producto'}</td>
-          <td><span class="badge ${badgeClass}">${m.type}</span></td>
-          <td>${m.quantity}</td>
-          <td>${m.entity_name || ''}</td>
-        </tr>
-      `;
-    });
-  } else {
-    movsRows = '<tr><td colspan="5" style="color:#64748b">Sin movimientos migrados</td></tr>';
-  }
-  
-  c.innerHTML = `
-    <div class="card">
-      <h2>Registrar movimiento (Sistema Migrado)</h2>
-      <label>Producto</label>
-      <input id="m-barcode" placeholder="Nombre del producto">
-      <input type="hidden" id="m-product-id">
-      <div id="m-prod-sel"></div>
-      <div class="row">
-        <div>
-          <label>Tipo</label>
-          <select id="m-type">
-            <option value="entrada">⬇ Ingreso</option>
-            <option value="salida">⬆ Despacho</option>
-          </select>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario 2026</title>
+    <!-- Librerías -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Estilos base (Mantenidos de tu original) */
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;padding:20px}
+        .container{max-width:900px;margin:0 auto}
+        .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:16px}
+        table{width:100%;border-collapse:collapse;margin-top:10px}
+        th,td{padding:10px;text-align:left;border-bottom:1px solid #334155}
+        .badge{padding:2px 8px;border-radius:99px;font-size:0.8rem}
+        .b-in{background:#065f46;color:#6ee7b7}
+        .b-out{background:#7f1d1d;color:#fca5a5}
+    </style>
+</head>
+<body>
+<div class="container">
+    <section id="view-app" class="card">
+        <h1>📦 Inventario Centralizado</h1>
+        <div id="tab-content">
+            <!-- Aquí cargaremos el contenido dinámico -->
         </div>
-        <div><label>Cantidad</label><input id="m-qty" type="number"></div>
-      </div>
-      <button id="btn-save-movement">Registrar en BD</button>
-    </div>
-    <div class="card">
-      <h2>Historial de Movimientos</h2>
-      <table>
-        <thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Origen/Destino</th></tr></thead>
-        <tbody>${movsRows}</tbody>
-      </table>
-    </div>
-  `;
-  document.getElementById('btn-save-movement').onclick = saveMovement;
-}
+    </section>
+</div>
 
-async function saveMovement() {
-  const item_id = document.getElementById('m-product-id').value;
-  const type = document.getElementById('m-type').value;
-  const quantity = parseInt(document.getElementById('m-qty').value);
-  const entity_name = document.getElementById('m-notes').value || 'N/A';
-  
-  // Guardado directo en la nueva tabla migrada 'movements'
-  const {error} = await sb.from('movements').insert({
-    center_id: session.centerId,
-    item_id: item_id,
-    type: type,
-    quantity: quantity,
-    entity_name: entity_name
-  });
-  
-  if (error) return alert(error.message);
-  renderStock(document.getElementById('tab-content'));
-}
+<script>
+    // 1. CONFIGURACIÓN
+    const supabase = supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
+
+    // 2. FUNCIÓN DE RENDERIZADO (El corazón de la app)
+    async function renderStock(c) {
+        // Obtenemos los movimientos migrados
+        const { data: movs, error } = await supabase
+            .from('movements')
+            .select('*, items(name)')
+            .order('movement_date', { ascending: false })
+            .limit(100);
+
+        let movsRows = '';
+        if (movs && movs.length > 0) {
+            movs.forEach(m => {
+                const badgeClass = m.type === 'entrada' ? 'b-in' : 'b-out';
+                movsRows += `
+                    <tr>
+                        <td>${new Date(m.movement_date).toLocaleDateString()}</td>
+                        <td>${m.items?.name || 'Producto'}</td>
+                        <td><span class="badge ${badgeClass}">${m.type}</span></td>
+                        <td>${m.quantity}</td>
+                        <td>${m.entity_name || ''}</td>
+                    </tr>`;
+            });
+        } else {
+            movsRows = '<tr><td colspan="5">Sin datos</td></tr>';
+        }
+
+        // Inyectamos el HTML dinámico
+        c.innerHTML = `
+            <div class="card">
+                <h2>Registrar nuevo movimiento</h2>
+                <input id="m-prod-name" placeholder="Nombre del producto">
+                <input type="hidden" id="m-product-id">
+                <select id="m-type">
+                    <option value="entrada">⬇ Ingreso</option>
+                    <option value="salida">⬆ Despacho</option>
+                </select>
+                <input id="m-qty" type="number" placeholder="Cantidad">
+                <input id="m-notes" placeholder="Entidad/Refugio">
+                <button id="btn-save-movement">Registrar en BD</button>
+            </div>
+            <table>
+                <thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Origen/Destino</th></tr></thead>
+                <tbody>${movsRows}</tbody>
+            </table>
+        `;
+
+        document.getElementById('btn-save-movement').onclick = saveMovement;
+    }
+
+    // 3. FUNCIÓN DE GUARDADO
+    async function saveMovement() {
+        const item_id = 'TU_ID_DE_PRODUCTO_FIJO'; // Ajustar según búsqueda
+        const type = document.getElementById('m-type').value;
+        const quantity = parseInt(document.getElementById('m-qty').value);
+        const entity_name = document.getElementById('m-notes').value;
+
+        const { error } = await supabase.from('movements').insert({
+            item_id: item_id,
+            type: type,
+            quantity: quantity,
+            entity_name: entity_name,
+            movement_date: new Date().toISOString()
+        });
+
+        if (error) alert("Error: " + error.message);
+        else renderStock(document.getElementById('tab-content'));
+    }
+
+    // Inicialización
+    renderStock(document.getElementById('tab-content'));
+</script>
+</body>
+</html>
