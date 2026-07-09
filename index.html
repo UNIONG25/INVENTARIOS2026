@@ -6,33 +6,76 @@
     <title>Inventario Solidario 2026</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* CSS Base (Mantén tu estilo original) */
-        body { font-family: system-ui; background: #0f172a; color: #e2e8f0; padding: 20px; }
-        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
-        input, select, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; }
-        button { background: #0ea5e9; font-weight: bold; cursor: pointer; }
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; position: relative; }
+        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; }
+        button { background: #0ea5e9; font-weight: bold; cursor: pointer; border: none; }
+        /* Estilos para el autocompletado */
+        .suggestions { position: absolute; background: #1e293b; border: 1px solid #334155; z-index: 100; width: calc(100% - 40px); display: none; border-radius: 0 0 8px 8px; }
+        .suggestion-item { padding: 10px; cursor: pointer; }
+        .suggestion-item:hover { background: #334155; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Formulario Inteligente -->
         <section class="card">
             <h1>📦 Registro de Movimiento</h1>
-            <input id="in-name" placeholder="Nombre del producto">
-            <input id="in-barcode" placeholder="Código de barras">
-            <input id="in-entity" placeholder="Empresa/Ente donante o receptor">
+            
+            <label>Nombre del Producto</label>
+            <input id="in-name" placeholder="Escribe para buscar..." autocomplete="off">
+            <div id="suggestions-items" class="suggestions"></div>
+
+            <label>Código de barras</label>
+            <input id="in-barcode" placeholder="Escanea o escribe">
+
+            <label>Empresa / Ente</label>
+            <input id="in-entity" placeholder="Buscar o crear ente..." autocomplete="off">
+            <div id="suggestions-entities" class="suggestions"></div>
+
+            <label>Tipo de Movimiento</label>
             <select id="in-type">
                 <option value="ingreso">Ingreso</option>
                 <option value="despacho">Despacho</option>
             </select>
-            <input id="in-qty" type="number" placeholder="Cantidad">
-            <button id="btn-save">Registrar Movimiento</button>
+
+            <label>Cantidad</label>
+            <input id="in-qty" type="number" placeholder="0">
+
+            <button id="btn-save">Registrar en Base de Datos</button>
         </section>
     </div>
 
     <script>
-        const supabase = supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
+        const supabase = supabase.createClient('TU_URL', 'TU_KEY');
 
+        // Función de autocompletado dinámico
+        async function buscar(query, tabla, campo, containerId) {
+            const container = document.getElementById(containerId);
+            if (query.length < 2) { container.style.display = 'none'; return; }
+
+            const { data } = await supabase.from(tabla).select(campo).ilike(campo, `%${query}%`).limit(5);
+
+            if (!data || data.length === 0) { container.style.display = 'none'; return; }
+
+            container.style.display = 'block';
+            container.innerHTML = data.map(item => `
+                <div class="suggestion-item" onclick="seleccionar('${item[campo]}', '${containerId}')">
+                    ${item[campo]}
+                </div>`).join('');
+        }
+
+        function seleccionar(valor, containerId) {
+            const inputId = containerId === 'suggestions-items' ? 'in-name' : 'in-entity';
+            document.getElementById(inputId).value = valor;
+            document.getElementById(containerId).style.display = 'none';
+        }
+
+        // Listeners de búsqueda
+        document.getElementById('in-name').addEventListener('input', (e) => buscar(e.target.value, 'items', 'name', 'suggestions-items'));
+        document.getElementById('in-entity').addEventListener('input', (e) => buscar(e.target.value, 'entities', 'name', 'suggestions-entities'));
+
+        // Registro del movimiento
         document.getElementById('btn-save').onclick = async () => {
             const data = {
                 p_item_name: document.getElementById('in-name').value,
@@ -41,13 +84,16 @@
                 p_entity_type: document.getElementById('in-type').value === 'ingreso' ? 'donante' : 'receptor',
                 p_quantity: parseInt(document.getElementById('in-qty').value),
                 p_type: document.getElementById('in-type').value,
-                p_center_id: 'TU_CENTER_ID', // Este ID vendrá de la sesión al loguearse
-                p_user_id: 'TU_USER_ID'      // Este ID vendrá de la sesión al loguearse
+                p_center_id: 'TU_CENTER_ID', // A implementar con Login
+                p_user_id: 'TU_USER_ID'      // A implementar con Login
             };
 
             const { error } = await supabase.rpc('register_movement', data);
             if (error) alert("Error: " + error.message);
-            else alert("Registro exitoso");
+            else {
+                alert("Movimiento registrado correctamente");
+                document.querySelectorAll('input').forEach(i => i.value = ''); // Limpiar
+            }
         };
     </script>
 </body>
