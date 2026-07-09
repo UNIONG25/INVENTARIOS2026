@@ -5,22 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventario Solidario 2026</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script> <!-- Librería de escáner -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
         .container { max-width: 600px; margin: 0 auto; }
-        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
-        input, select, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; position: relative; }
+        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; }
         button { background: #0ea5e9; font-weight: bold; cursor: pointer; border: none; }
         .hidden { display: none; }
-        #reader { width: 100%; background: black; }
+        #reader { width: 100%; background: #000; border-radius: 8px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
         th, td { border: 1px solid #334155; padding: 8px; text-align: left; }
+        .suggestions { position: absolute; background: #1e293b; border: 1px solid #334155; z-index: 100; width: calc(100% - 40px); display: none; border-radius: 0 0 8px 8px; }
+        .suggestion-item { padding: 10px; cursor: pointer; }
+        .suggestion-item:hover { background: #334155; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- SECCIÓN LOGIN -->
+        <!-- PANTALLA DE LOGIN -->
         <section id="login-section" class="card">
             <h1>🔐 Iniciar Sesión</h1>
             <input id="login-user" placeholder="Usuario">
@@ -29,29 +32,36 @@
         </section>
 
         <!-- APLICACIÓN PRINCIPAL -->
-        <section id="app-section" class="hidden">
-            <div class="card">
-                <button onclick="iniciarEscaner()">📷 Abrir Cámara (Escáner)</button>
-                <div id="reader"></div>
-            </div>
+        <section id="app-section" class="card hidden">
+            <h1>📦 Registro de Movimiento</h1>
+            
+            <div id="reader"></div>
+            <button onclick="iniciarEscaner()">📷 Abrir Cámara (Escáner)</button>
+            
+            <label>Nombre del Producto</label>
+            <input id="in-name" placeholder="Escribe para buscar..." autocomplete="off">
+            <div id="suggestions-items" class="suggestions"></div>
 
-            <div class="card">
-                <h1>📦 Registro</h1>
-                <input id="in-name" placeholder="Producto...">
-                <input id="in-barcode" placeholder="Código de barras...">
-                <input id="in-entity" placeholder="Empresa...">
-                <select id="in-type"><option value="ingreso">Ingreso</option><option value="despacho">Despacho</option></select>
-                <input id="in-qty" type="number" placeholder="Cantidad">
-                <button id="btn-save">Guardar Movimiento</button>
-            </div>
+            <label>Código de barras</label>
+            <input id="in-barcode" placeholder="Escanea o escribe">
 
-            <div class="card">
-                <h1>📊 Historial Reciente</h1>
-                <table id="history-table">
-                    <thead><tr><th>Producto</th><th>Tipo</th><th>Cant.</th></tr></thead>
-                    <tbody id="history-body"></tbody>
-                </table>
-            </div>
+            <label>Empresa / Ente</label>
+            <input id="in-entity" placeholder="Buscar o crear ente..." autocomplete="off">
+            <div id="suggestions-entities" class="suggestions"></div>
+
+            <label>Tipo</label>
+            <select id="in-type"><option value="ingreso">Ingreso</option><option value="despacho">Despacho</option></select>
+
+            <label>Cantidad</label>
+            <input id="in-qty" type="number" placeholder="0">
+
+            <button id="btn-save">Registrar</button>
+
+            <h2>📊 Historial Reciente</h2>
+            <table id="history-table">
+                <thead><tr><th>Producto</th><th>Tipo</th><th>Cant.</th></tr></thead>
+                <tbody id="history-body"></tbody>
+            </table>
         </section>
     </div>
 
@@ -59,7 +69,22 @@
         const sbClient = supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
         let currentUser = null;
 
-        // --- CÁMARA (Escáner) ---
+        async function sha256(str) {
+            const msgUint8 = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function cargarHistorial() {
+            const { data } = await sbClient.from('movements').select('*, items(name)').order('created_at', { ascending: false }).limit(5);
+            if(data) {
+                document.getElementById('history-body').innerHTML = data.map(m => `
+                    <tr><td>${m.items?.name || 'N/A'}</td><td>${m.type}</td><td>${m.quantity}</td></tr>
+                `).join('');
+            }
+        }
+
         function iniciarEscaner() {
             const html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
@@ -69,26 +94,50 @@
                 });
         }
 
-        // --- CARGAR HISTORIAL ---
-        async function cargarHistorial() {
-            const { data } = await sbClient.from('movements').select('*, items(name)').order('movement_date', { ascending: false }).limit(5);
-            document.getElementById('history-body').innerHTML = data.map(m => `
-                <tr><td>${m.items.name}</td><td>${m.type}</td><td>${m.quantity}</td></tr>
-            `).join('');
-        }
-
-        // --- LOGIN INTEGRADO ---
         document.getElementById('btn-login').onclick = async () => {
-            // (Tu lógica de login que ya funciona)
-            // Al finalizar el login exitoso, ejecutar:
+            const user = document.getElementById('login-user').value;
+            const pass = document.getElementById('login-pass').value;
+            const hashedInput = await sha256(pass);
+            const { data, error } = await sbClient.from('users').select('*, centers(name)').eq('username', user).single();
+            if (error || data.password_hash !== hashedInput) { alert("Credenciales inválidas"); return; }
+            currentUser = data;
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('app-section').classList.remove('hidden');
             cargarHistorial();
         };
 
-        // --- REGISTRO CON ACTUALIZACIÓN ---
+        async function buscar(query, tabla, campo, containerId) {
+            const container = document.getElementById(containerId);
+            if (query.length < 2) { container.style.display = 'none'; return; }
+            const { data } = await sbClient.from(tabla).select(campo).ilike(campo, `%${query}%`).limit(5);
+            if (!data || data.length === 0) { container.style.display = 'none'; return; }
+            container.style.display = 'block';
+            container.innerHTML = data.map(i => `<div class="suggestion-item" onclick="seleccionar('${i[campo]}', '${containerId}')">${i[campo]}</div>`).join('');
+        }
+
+        function seleccionar(valor, containerId) {
+            const inputId = containerId === 'suggestions-items' ? 'in-name' : 'in-entity';
+            document.getElementById(inputId).value = valor;
+            document.getElementById(containerId).style.display = 'none';
+        }
+
+        document.getElementById('in-name').addEventListener('input', (e) => buscar(e.target.value, 'items', 'name', 'suggestions-items'));
+        document.getElementById('in-entity').addEventListener('input', (e) => buscar(e.target.value, 'entities', 'name', 'suggestions-entities'));
+
         document.getElementById('btn-save').onclick = async () => {
-            // (Tu lógica de registro que ya funciona)
-            // Después del alert de éxito, llamar a:
-            cargarHistorial();
+            const data = {
+                p_item_name: document.getElementById('in-name').value,
+                p_item_barcode: document.getElementById('in-barcode').value,
+                p_entity_name: document.getElementById('in-entity').value,
+                p_entity_type: document.getElementById('in-type').value === 'ingreso' ? 'donante' : 'receptor',
+                p_quantity: parseInt(document.getElementById('in-qty').value),
+                p_type: document.getElementById('in-type').value,
+                p_center_id: currentUser.center_id,
+                p_user_id: currentUser.id
+            };
+            const { error } = await sbClient.rpc('register_movement', data);
+            if (error) alert("Error: " + error.message);
+            else { alert("Movimiento guardado"); cargarHistorial(); }
         };
     </script>
 </body>
