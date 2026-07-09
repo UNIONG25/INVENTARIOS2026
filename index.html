@@ -121,14 +121,54 @@
             cargarHistorial();
         };
 
-        async function buscar(query, tabla, campo, containerId) {
-            const container = document.getElementById(containerId);
-            if (query.length < 2) { container.style.display = 'none'; return; }
-            const { data } = await sbClient.from(tabla).select(campo).ilike(campo, `%${query}%`).limit(5);
-            if (!data || data.length === 0) { container.style.display = 'none'; return; }
-            container.style.display = 'block';
-            container.innerHTML = data.map(i => `<div class="suggestion-item" onclick="seleccionar('${i[campo]}', '${containerId}')">${i[campo]}</div>`).join('');
-        }
+        // Función unificada para búsqueda dinámica
+async function buscar(query, tabla, campo, containerId) {
+    const container = document.getElementById(containerId);
+    
+    // Si la búsqueda es muy corta, ocultamos y salimos
+    if (!query || query.length < 1) { 
+        container.style.display = 'none'; 
+        return; 
+    }
+    
+    // Llamada a Supabase
+    const { data, error } = await sbClient
+        .from(tabla)
+        .select(campo)
+        .ilike(campo, `%${query}%`)
+        .limit(5);
+
+    // Manejo de errores o resultados vacíos
+    if (error) {
+        console.error("Error en búsqueda:", error);
+        return;
+    }
+    
+    if (!data || data.length === 0) { 
+        container.style.display = 'none'; 
+        return; 
+    }
+    
+    // Aplicar estilos directamente para asegurar visibilidad absoluta
+    container.style.display = 'block';
+    container.style.position = 'absolute';
+    container.style.zIndex = '9999';
+    container.style.width = 'calc(100% - 40px)'; // Ajuste según tu padding
+    container.style.backgroundColor = '#1e293b';
+    container.style.border = '1px solid #334155';
+    container.style.borderRadius = '0 0 8px 8px';
+    container.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+
+    // Renderizado de resultados
+    container.innerHTML = data.map(item => `
+        <div class="suggestion-item" 
+             style="padding: 12px; cursor: pointer; color: #e2e8f0; border-bottom: 1px solid #334155;"
+             onmouseover="this.style.background='#334155'"
+             onmouseout="this.style.background='transparent'"
+             onclick="seleccionar('${item[campo]}', '${containerId}')">
+            ${item[campo]}
+        </div>`).join('');
+}
 
         function seleccionar(valor, containerId) {
     if (containerId === 'suggestions-entities') {
