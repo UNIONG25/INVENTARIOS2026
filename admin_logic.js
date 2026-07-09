@@ -1,5 +1,5 @@
 // Configuración global (reemplaza con tus datos)
-const sbClient = supabase.createClient('TU_URL', 'TU_KEY');
+const sbClient = supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
 
 // Inicialización de eventos al cargar el documento
 document.addEventListener('DOMContentLoaded', () => {
