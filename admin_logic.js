@@ -1,13 +1,9 @@
-// Configuración global (reemplaza con tus datos)
-const sbClient = supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
+const sbClient = supabase.createClient('TU_URL', 'TU_KEY');
 
-// Inicialización de eventos al cargar el documento
 document.addEventListener('DOMContentLoaded', () => {
-    // Buscadores dinámicos
+    // Configuración de listeners seguros
     document.getElementById('in-name').addEventListener('input', (e) => buscar(e.target.value, 'items', 'name', 'suggestions-items'));
     document.getElementById('in-entity').addEventListener('input', (e) => buscar(e.target.value, 'entities', 'name', 'suggestions-entities'));
-
-    // Botón de guardado
     document.getElementById('btn-save').addEventListener('click', registrarMovimiento);
 });
 
@@ -16,7 +12,7 @@ async function buscar(query, tabla, campo, containerId) {
     if (!query || query.length < 1) { container.style.display = 'none'; return; }
     
     const { data } = await sbClient.from(tabla).select(campo).ilike(campo, `%${query}%`).limit(5);
-
+    
     if (!data || data.length === 0) { container.style.display = 'none'; return; }
     
     container.style.display = 'block';
@@ -26,8 +22,10 @@ async function buscar(query, tabla, campo, containerId) {
         const div = document.createElement('div');
         div.className = 'suggestion-item';
         div.textContent = item[campo];
+        // Asignación segura del evento
         div.addEventListener('click', () => {
-            document.getElementById(containerId === 'suggestions-items' ? 'in-name' : 'in-entity').value = item[campo];
+            const inputId = containerId === 'suggestions-items' ? 'in-name' : 'in-entity';
+            document.getElementById(inputId).value = item[campo];
             container.style.display = 'none';
         });
         container.appendChild(div);
@@ -39,15 +37,15 @@ async function registrarMovimiento() {
         p_item_name: document.getElementById('in-name').value,
         p_item_barcode: document.getElementById('in-barcode').value,
         p_entity_name: document.getElementById('in-entity').value,
-        p_entity_type: document.getElementById('in-type').value === 'ingreso' ? 'donante' : 'receptor',
+        p_entity_type: 'donante', 
         p_quantity: parseInt(document.getElementById('in-qty').value),
         p_type: document.getElementById('in-type').value,
-        p_center_id: 'TU_CENTER_ID_O_DINAMICO', 
-        p_user_id: 'TU_USER_ID_O_DINAMICO',
+        p_center_id: '00000000-0000-0000-0000-000000000000', 
+        p_user_id: '00000000-0000-0000-0000-000000000000',
         p_created_at: new Date().toISOString().split('T')[0]
     };
 
     const { error } = await sbClient.rpc('register_movement', data);
-    if (error) console.error("Error:", error);
-    else alert("Movimiento registrado correctamente");
+    if (error) alert("Error: " + error.message);
+    else alert("Registrado exitosamente");
 }
