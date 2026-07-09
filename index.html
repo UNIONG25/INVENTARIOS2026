@@ -19,7 +19,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- PANTALLA DE LOGIN -->
         <section id="login-section" class="card">
             <h1>🔐 Iniciar Sesión</h1>
             <input id="login-user" placeholder="Usuario">
@@ -27,90 +26,61 @@
             <button id="btn-login">Entrar</button>
         </section>
 
-        <!-- APLICACIÓN (OCULTA HASTA EL LOGIN) -->
-        <section id="app-section" class="hidden">
-            <div class="card">
-                <h1>📦 Registro de Movimiento</h1>
-                <p id="user-info" style="color: #94a3b8; font-size: 0.8rem;"></p>
-                
-                <label>Nombre del Producto</label>
-                <input id="in-name" placeholder="Escribe para buscar..." autocomplete="off">
-                <div id="suggestions-items" class="suggestions"></div>
+        <section id="app-section" class="card hidden">
+            <h1>📦 Registro de Movimiento</h1>
+            <p id="user-info" style="color: #94a3b8; font-size: 0.8rem;"></p>
+            
+            <label>Nombre del Producto</label>
+            <input id="in-name" placeholder="Escribe para buscar..." autocomplete="off">
+            <div id="suggestions-items" class="suggestions"></div>
 
-                <label>Código de barras</label>
-                <input id="in-barcode" placeholder="Escanea o escribe">
+            <label>Código de barras</label>
+            <input id="in-barcode" placeholder="Escanea o escribe">
 
-                <label>Empresa / Ente</label>
-                <input id="in-entity" placeholder="Buscar o crear ente..." autocomplete="off">
-                <div id="suggestions-entities" class="suggestions"></div>
+            <label>Empresa / Ente</label>
+            <input id="in-entity" placeholder="Buscar o crear ente..." autocomplete="off">
+            <div id="suggestions-entities" class="suggestions"></div>
 
-                <label>Tipo de Movimiento</label>
-                <select id="in-type">
-                    <option value="ingreso">Ingreso</option>
-                    <option value="despacho">Despacho</option>
-                </select>
+            <label>Tipo de Movimiento</label>
+            <select id="in-type">
+                <option value="ingreso">Ingreso</option>
+                <option value="despacho">Despacho</option>
+            </select>
 
-                <label>Cantidad</label>
-                <input id="in-qty" type="number" placeholder="0">
+            <label>Cantidad</label>
+            <input id="in-qty" type="number" placeholder="0">
 
-                <button id="btn-save">Registrar en Base de Datos</button>
-            </div>
+            <button id="btn-save">Registrar en Base de Datos</button>
         </section>
     </div>
 
     <script>
-       // const supabase = supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
-       // let currentUser = null;
+        // Inicialización segura de Supabase
+        window.supabaseClient = window.supabaseClient || supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
+        const supabase = window.supabaseClient;
+        let currentUser = null;
 
-// Necesitas esta pequeña función para cifrar lo que el usuario escribe
-async function sha256(str) {
-    const msgUint8 = new TextEncoder().encode(str);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+        // Función de cifrado SHA-256
+        async function sha256(str) {
+            const msgUint8 = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
 
-// Lógica de Login actualizada
-document.getElementById('btn-login').onclick = async () => {
-    const user = document.getElementById('login-user').value;
-    const pass = document.getElementById('login-pass').value;
-
-    // 1. Ciframos la contraseña ingresada por el usuario
-    const hashedInput = await sha256(pass);
-
-    // 2. Buscamos al usuario
-    const { data, error } = await supabase
-        .from('users')
-        .select('*, centers(name)')
-        .eq('username', user)
-        .single();
-
-    // 3. Comparamos el hash que escribieron con el que guardamos en la BD
-    if (error || data.password_hash !== hashedInput) {
-        alert("Credenciales inválidas");
-        return;
-    }
-
-    currentUser = data;
-    document.getElementById('login-section').classList.add('hidden');
-    document.getElementById('app-section').classList.remove('hidden');
-    document.getElementById('user-info').textContent = `Conectado como: ${currentUser.username} | Centro: ${currentUser.centers.name}`;
-};
-        
-
-        // LOGIN LÓGICA
+        // Lógica de Login
         document.getElementById('btn-login').onclick = async () => {
             const user = document.getElementById('login-user').value;
             const pass = document.getElementById('login-pass').value;
+            const hashedInput = await sha256(pass);
 
-            // Buscamos al usuario en la tabla users
             const { data, error } = await supabase
                 .from('users')
                 .select('*, centers(name)')
                 .eq('username', user)
                 .single();
 
-            if (error || data.password_hash !== pass) { // NOTA: En producción usa hash seguro
+            if (error || data.password_hash !== hashedInput) {
                 alert("Credenciales inválidas");
                 return;
             }
@@ -118,12 +88,32 @@ document.getElementById('btn-login').onclick = async () => {
             currentUser = data;
             document.getElementById('login-section').classList.add('hidden');
             document.getElementById('app-section').classList.remove('hidden');
-            document.getElementById('user-info').textContent = `Conectado como: ${currentUser.username} | Centro: ${currentUser.centers.name}`;
+            document.getElementById('user-info').textContent = `Usuario: ${currentUser.username} | Centro: ${currentUser.centers.name}`;
         };
 
-        // ... (Aquí mantienes las funciones 'buscar', 'seleccionar' y el 'onclick' de 'btn-save') ...
+        // Búsqueda dinámica
+        async function buscar(query, tabla, campo, containerId) {
+            const container = document.getElementById(containerId);
+            if (query.length < 2) { container.style.display = 'none'; return; }
+            const { data } = await supabase.from(tabla).select(campo).ilike(campo, `%${query}%`).limit(5);
+            if (!data || data.length === 0) { container.style.display = 'none'; return; }
+            container.style.display = 'block';
+            container.innerHTML = data.map(item => `
+                <div class="suggestion-item" onclick="seleccionar('${item[campo]}', '${containerId}')">
+                    ${item[campo]}
+                </div>`).join('');
+        }
 
-        // AJUSTE EN EL REGISTRO PARA USAR currentUser
+        function seleccionar(valor, containerId) {
+            const inputId = containerId === 'suggestions-items' ? 'in-name' : 'in-entity';
+            document.getElementById(inputId).value = valor;
+            document.getElementById(containerId).style.display = 'none';
+        }
+
+        document.getElementById('in-name').addEventListener('input', (e) => buscar(e.target.value, 'items', 'name', 'suggestions-items'));
+        document.getElementById('in-entity').addEventListener('input', (e) => buscar(e.target.value, 'entities', 'name', 'suggestions-entities'));
+
+        // Registro de Movimiento
         document.getElementById('btn-save').onclick = async () => {
             const data = {
                 p_item_name: document.getElementById('in-name').value,
@@ -132,13 +122,16 @@ document.getElementById('btn-login').onclick = async () => {
                 p_entity_type: document.getElementById('in-type').value === 'ingreso' ? 'donante' : 'receptor',
                 p_quantity: parseInt(document.getElementById('in-qty').value),
                 p_type: document.getElementById('in-type').value,
-                p_center_id: currentUser.center_id, // Tomado automáticamente del login
-                p_user_id: currentUser.id           // Tomado automáticamente del login
+                p_center_id: currentUser.center_id,
+                p_user_id: currentUser.id
             };
 
             const { error } = await supabase.rpc('register_movement', data);
             if (error) alert("Error: " + error.message);
-            else alert("Movimiento registrado para " + currentUser.centers.name);
+            else {
+                alert("Movimiento registrado correctamente");
+                document.querySelectorAll('input').forEach(i => { if(i.id !== 'login-user' && i.id !== 'login-pass') i.value = ''; });
+            }
         };
     </script>
 </body>
