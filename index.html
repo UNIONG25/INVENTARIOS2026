@@ -82,13 +82,23 @@
         }
 
         async function cargarHistorial() {
-            const { data } = await sbClient.from('movements').select('*, items(name)').order('created_at', { ascending: false }).limit(5);
-            if(data) {
-                document.getElementById('history-body').innerHTML = data.map(m => `
-                    <tr><td>${m.items?.name || 'N/A'}</td><td>${m.type}</td><td>${m.quantity}</td></tr>
-                `).join('');
-            }
-        }
+    // Ya no usamos 'items(name)', usamos directamente 'item_name'
+    const { data } = await sbClient
+        .from('movements')
+        .select('item_name, type, quantity') 
+        .order('created_at', { ascending: false })
+        .limit(5);
+        
+    if(data) {
+        document.getElementById('history-body').innerHTML = data.map(m => `
+            <tr>
+                <td>${m.item_name || 'N/A'}</td>
+                <td>${m.type}</td>
+                <td>${m.quantity}</td>
+            </tr>
+        `).join('');
+    }
+}
 
         function iniciarEscaner() {
             const html5QrCode = new Html5Qrcode("reader");
