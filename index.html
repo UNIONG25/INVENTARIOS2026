@@ -2,43 +2,33 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventario Solidario 2026</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
         .container { max-width: 600px; margin: 0 auto; }
         .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; position: relative; }
-        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
-        button { background: #0ea5e9; font-weight: bold; cursor: pointer; border: none; }
+        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; }
         .suggestions { border: 1px solid #334155; background: #1e293b; position: absolute; width: calc(100% - 40px); display: none; z-index: 1000; }
-        .suggestion-item { padding: 12px; cursor: pointer; color: #e2e8f0; border-bottom: 1px solid #334155; }
+        .suggestion-item { padding: 12px; cursor: pointer; }
         .suggestion-item:hover { background: #334155; }
     </style>
 </head>
 <body>
     <div class="container">
-        <section id="app-section" class="card">
+        <section class="card">
             <h1>📦 Registro de Movimiento</h1>
-            
-            <label>Nombre del Producto</label>
-            <input id="in-name" placeholder="Escribe para buscar..." autocomplete="off">
+            <input id="in-name" placeholder="Nombre del producto...">
             <div id="suggestions-items" class="suggestions"></div>
-
-            <label>Código de barras</label>
-            <input id="in-barcode" placeholder="Escanea o escribe">
-
-            <label>Empresa / Ente</label>
-            <input id="in-entity" placeholder="Nombre del ente..." autocomplete="off">
+            
+            <input id="in-barcode" placeholder="Código de barras">
+            
+            <input id="in-entity" placeholder="Empresa o Ente...">
             <div id="suggestions-entities" class="suggestions"></div>
-
-            <label>Tipo</label>
+            
             <select id="in-type"><option value="ingreso">Ingreso</option><option value="despacho">Despacho</option></select>
-
-            <label>Cantidad</label>
-            <input id="in-qty" type="number" placeholder="0">
-
-            <button id="btn-save">Registrar</button>
+            <input id="in-qty" type="number" placeholder="Cantidad">
+            <button id="btn-save">Registrar Movimiento</button>
         </section>
     </div>
     <script src="admin_logic.js"></script>
