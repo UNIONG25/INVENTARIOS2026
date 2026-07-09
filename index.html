@@ -62,6 +62,42 @@
         const supabase = supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
         let currentUser = null;
 
+// Necesitas esta pequeña función para cifrar lo que el usuario escribe
+async function sha256(str) {
+    const msgUint8 = new TextEncoder().encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Lógica de Login actualizada
+document.getElementById('btn-login').onclick = async () => {
+    const user = document.getElementById('login-user').value;
+    const pass = document.getElementById('login-pass').value;
+
+    // 1. Ciframos la contraseña ingresada por el usuario
+    const hashedInput = await sha256(pass);
+
+    // 2. Buscamos al usuario
+    const { data, error } = await supabase
+        .from('users')
+        .select('*, centers(name)')
+        .eq('username', user)
+        .single();
+
+    // 3. Comparamos el hash que escribieron con el que guardamos en la BD
+    if (error || data.password_hash !== hashedInput) {
+        alert("Credenciales inválidas");
+        return;
+    }
+
+    currentUser = data;
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('app-section').classList.remove('hidden');
+    document.getElementById('user-info').textContent = `Conectado como: ${currentUser.username} | Centro: ${currentUser.centers.name}`;
+};
+        
+
         // LOGIN LÓGICA
         document.getElementById('btn-login').onclick = async () => {
             const user = document.getElementById('login-user').value;
