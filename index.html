@@ -5,39 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventario Solidario 2026</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="admin_logic.js"></script>
     <style>
         body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
         .container { max-width: 600px; margin: 0 auto; }
         .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; position: relative; }
-        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; }
+        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
         button { background: #0ea5e9; font-weight: bold; cursor: pointer; border: none; }
-        .hidden { display: none; }
-        #reader { width: 100%; background: #000; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
-        th, td { border: 1px solid #334155; padding: 8px; text-align: left; }
-        .suggestions { position: absolute; background: #1e293b; border: 1px solid #334155; z-index: 100; width: calc(100% - 40px); display: none; border-radius: 0 0 8px 8px; }
-        .suggestion-item { padding: 10px; cursor: pointer; }
+        .suggestions { border: 1px solid #334155; background: #1e293b; position: absolute; width: calc(100% - 40px); display: none; z-index: 1000; }
+        .suggestion-item { padding: 12px; cursor: pointer; color: #e2e8f0; border-bottom: 1px solid #334155; }
         .suggestion-item:hover { background: #334155; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- PANTALLA DE LOGIN -->
-        <section id="login-section" class="card">
-            <h1>🔐 Iniciar Sesión</h1>
-            <input id="login-user" placeholder="Usuario">
-            <input id="login-pass" type="password" placeholder="Contraseña">
-            <button id="btn-login">Entrar</button>
-        </section>
-
-        <!-- APLICACIÓN PRINCIPAL -->
-        <section id="app-section" class="card hidden">
+        <section id="app-section" class="card">
             <h1>📦 Registro de Movimiento</h1>
-            
-            <div id="reader"></div>
-            <button onclick="iniciarEscaner()">📷 Abrir Cámara (Escáner)</button>
             
             <label>Nombre del Producto</label>
             <input id="in-name" placeholder="Escribe para buscar..." autocomplete="off">
@@ -48,7 +30,6 @@
 
             <label>Empresa / Ente</label>
             <input id="in-entity" placeholder="Nombre del ente..." autocomplete="off">
-            <input id="in-contact" placeholder="Teléfono de contacto...">
             <div id="suggestions-entities" class="suggestions"></div>
 
             <label>Tipo</label>
@@ -57,157 +38,9 @@
             <label>Cantidad</label>
             <input id="in-qty" type="number" placeholder="0">
 
-            <label>Fecha de Ingreso (opcional)</label>
-            <input id="in-date" type="date">
-
             <button id="btn-save">Registrar</button>
-
-            <h2>📊 Historial Reciente</h2>
-            <table id="history-table">
-                <thead><tr><th>Producto</th><th>Tipo</th><th>Cant.</th></tr></thead>
-                <tbody id="history-body"></tbody>
-            </table>
         </section>
     </div>
-
-    <script>
-        const sbClient = supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
-        let currentUser = null;
-
-        async function sha256(str) {
-            const msgUint8 = new TextEncoder().encode(str);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        async function cargarHistorial() {
-    // Ya no usamos 'items(name)', usamos directamente 'item_name'
-    const { data } = await sbClient
-        .from('movements')
-        .select('item_name, type, quantity') 
-        .order('created_at', { ascending: false })
-        .limit(5);
-        
-    if(data) {
-        document.getElementById('history-body').innerHTML = data.map(m => `
-            <tr>
-                <td>${m.item_name || 'N/A'}</td>
-                <td>${m.type}</td>
-                <td>${m.quantity}</td>
-            </tr>
-        `).join('');
-    }
-}
-
-        function iniciarEscaner() {
-            const html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
-                (decodedText) => {
-                    document.getElementById('in-barcode').value = decodedText;
-                    html5QrCode.stop();
-                });
-        }
-
-        document.getElementById('btn-login').onclick = async () => {
-            const user = document.getElementById('login-user').value;
-            const pass = document.getElementById('login-pass').value;
-            const hashedInput = await sha256(pass);
-            const { data, error } = await sbClient.from('users').select('*, centers(name)').eq('username', user).single();
-            if (error || data.password_hash !== hashedInput) { alert("Credenciales inválidas"); return; }
-            currentUser = data;
-            document.getElementById('login-section').classList.add('hidden');
-            document.getElementById('app-section').classList.remove('hidden');
-            cargarHistorial();
-        };
-
-        // Función unificada para búsqueda dinámica
-async function buscar(query, tabla, campo, containerId) {
-    const container = document.getElementById(containerId);
-    
-    // Si la búsqueda es muy corta, ocultamos y salimos
-    if (!query || query.length < 1) { 
-        container.style.display = 'none'; 
-        return; 
-    }
-    
-    // Llamada a Supabase
-    const { data, error } = await sbClient
-        .from(tabla)
-        .select(campo)
-        .ilike(campo, `%${query}%`)
-        .limit(5);
-
-    // Manejo de errores o resultados vacíos
-    if (error) {
-        console.error("Error en búsqueda:", error);
-        return;
-    }
-    
-    if (!data || data.length === 0) { 
-        container.style.display = 'none'; 
-        return; 
-    }
-    
-    // Aplicar estilos directamente para asegurar visibilidad absoluta
-    container.style.display = 'block';
-    container.style.position = 'absolute';
-    container.style.zIndex = '9999';
-    container.style.width = 'calc(100% - 40px)'; // Ajuste según tu padding
-    container.style.backgroundColor = '#1e293b';
-    container.style.border = '1px solid #334155';
-    container.style.borderRadius = '0 0 8px 8px';
-    container.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-
-    // Renderizado de resultados
-    container.innerHTML = data.map(item => `
-        <div class="suggestion-item" 
-             style="padding: 12px; cursor: pointer; color: #e2e8f0; border-bottom: 1px solid #334155;"
-             onmouseover="this.style.background='#334155'"
-             onmouseout="this.style.background='transparent'"
-             onclick="seleccionar('${item[campo]}', '${containerId}')">
-            ${item[campo]}
-        </div>`).join('');
-}
-
-       function seleccionar(valor, containerId) {
-    // Identificamos el input según el contenedor
-    if (containerId === 'suggestions-items') {
-        document.getElementById('in-name').value = valor;
-        // Opcional: Si seleccionas un producto, podrías buscar su barcode asociado
-    } else if (containerId === 'suggestions-entities') {
-        document.getElementById('in-entity').value = valor;
-        // Llamada a la función de autocompletar contacto que creamos antes
-        if (typeof cargarContactoEnte === 'function') cargarContactoEnte(valor);
-    }
-    
-    // Ocultar todas las cajas de sugerencias
-    document.getElementById(containerId).style.display = 'none';
-}
-
-        document.getElementById('in-name').addEventListener('input', (e) => buscar(e.target.value, 'items', 'name', 'suggestions-items'));
-        document.getElementById('in-entity').addEventListener('input', (e) => buscar(e.target.value, 'entities', 'name', 'suggestions-entities'));
-
-        document.getElementById('btn-save').onclick = async () => {
-    const fecha = obtenerFechaRegistro(); // Usamos la función del archivo externo
-
-    const data = {
-        p_item_name: document.getElementById('in-name').value,
-        p_item_barcode: document.getElementById('in-barcode').value,
-        p_entity_name: document.getElementById('in-entity').value,
-        p_entity_type: document.getElementById('in-type').value === 'ingreso' ? 'donante' : 'receptor',
-        p_quantity: parseInt(document.getElementById('in-qty').value),
-        p_type: document.getElementById('in-type').value,
-        p_center_id: currentUser.center_id,
-        p_user_id: currentUser.id,
-        p_created_at: fecha // Asegúrate de que tu función RPC acepte este nuevo parámetro
-    };
-
-    const { error } = await sbClient.rpc('register_movement', data);
-    
-    if (error) alert("Error: " + error.message);
-    else { alert("Movimiento guardado"); cargarHistorial(); }
-};
-    </script>
+    <script src="admin_logic.js"></script>
 </body>
 </html>
