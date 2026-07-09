@@ -39,3 +39,18 @@ function obtenerFechaRegistro() {
 
 // Nota: Ahora necesitamos actualizar tu función de registro en el archivo principal (index.html)
 // para que tome esta fecha.
+
+// admin_logic.js
+
+// Al seleccionar un ente, buscamos su contacto
+async function cargarContactoEnte(nombreEnte) {
+    const { data } = await sbClient
+        .from('entities')
+        .select('contact_phone')
+        .eq('name', nombreEnte)
+        .single();
+        
+    if (data && data.contact_phone) {
+        document.getElementById('in-contact').value = data.contact_phone;
+    }
+}
