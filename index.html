@@ -18,7 +18,7 @@
     <header class="bg-slate-900 border-b border-slate-800 p-4">
         <div class="max-w-5xl mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold text-white">Inventario <span class="text-sky-500">2026</span></h1>
-            <div id="user-status" class="text-xs text-slate-400">Sesión iniciada: Administrador</div>
+            <div id="user-status" class="text-xs text-slate-400">Sesión: Administrador</div>
         </div>
     </header>
 
@@ -38,7 +38,7 @@
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
                 <h2 class="text-lg font-semibold mb-4 text-white">Gestión de Usuarios</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" placeholder="Nuevo Usuario" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full focus:ring-2 focus:ring-sky-500 outline-none">
+                    <input type="text" placeholder="Nuevo Usuario" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full outline-none focus:ring-2 focus:ring-sky-500">
                     <input type="password" placeholder="Clave" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
                     <select class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
                         <option>Nivel: Administrador</option>
@@ -49,33 +49,46 @@
             </div>
         </section>
 
-        <!-- PESTAÑA: Entradas -->
         <section id="ingreso" class="tab-content space-y-6">
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h2 class="text-lg font-semibold mb-4 text-white">Registrar Entrada al Almacén</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" placeholder="Empresa o Ente que dona" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
-                    <input type="date" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
-                    <input type="text" placeholder="Código de barras / Manual" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
-                    <input type="text" placeholder="Nombre del producto" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
-                    <input type="number" placeholder="Cantidad" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full col-span-1 md:col-span-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-semibold text-white">Registrar Entrada</h2>
+                    <button onclick="addRow('ingreso-container')" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded-lg text-sm font-bold">+ Agregar Fila</button>
                 </div>
-                <button class="mt-4 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-medium w-full">Guardar Ingreso</button>
+                <div id="ingreso-container" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700 relative">
+                        <input type="text" placeholder="Ente/Donante" class="bg-transparent border-none p-1 w-full focus:outline-none">
+                        <input type="date" class="bg-transparent border-none p-1 w-full focus:outline-none">
+                        <input type="text" placeholder="Cód/Barra" class="bg-transparent border-none p-1 w-full focus:outline-none">
+                        <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
+                        <div class="flex items-center gap-2">
+                            <input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none">
+                            <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="mt-6 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-medium w-full">Guardar Ingreso Total</button>
             </div>
         </section>
 
-        <!-- PESTAÑA: Despacho -->
         <section id="despacho" class="tab-content space-y-6">
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h2 class="text-lg font-semibold mb-4 text-white">Registrar Despacho</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" placeholder="Destino / Receptor" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
-                    <input type="text" placeholder="Contacto del receptor" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
-                    <input type="text" placeholder="Código de producto" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
-                    <input type="text" placeholder="Producto" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
-                    <input type="number" placeholder="Cantidad" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full col-span-1 md:col-span-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-semibold text-white">Registrar Despacho</h2>
+                    <button onclick="addRow('despacho-container')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded-lg text-sm font-bold">+ Agregar Fila</button>
                 </div>
-                <button class="mt-4 bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-medium w-full">Guardar Despacho</button>
+                <div id="despacho-container" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700 relative">
+                        <input type="text" placeholder="Destino" class="bg-transparent border-none p-1 w-full focus:outline-none">
+                        <input type="text" placeholder="Contacto" class="bg-transparent border-none p-1 w-full focus:outline-none">
+                        <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
+                        <div class="flex items-center gap-2">
+                            <input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none">
+                            <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="mt-6 bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-medium w-full">Guardar Despacho Total</button>
             </div>
         </section>
 
@@ -84,7 +97,7 @@
             <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
                 <div class="p-6 border-b border-slate-700 flex justify-between items-center">
                     <h2 class="text-lg font-semibold text-white">Inventario Actual</h2>
-                    <button class="text-sm bg-slate-700 hover:bg-slate-600 px-4 py-1 rounded-md">Exportar Excel</button>
+                    <button class="text-sm bg-slate-700 hover:bg-slate-600 px-4 py-1 rounded-md transition-all">Exportar Excel</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm">
@@ -112,13 +125,23 @@
 
     <script>
         function switchTab(tabId) {
-            // Ocultar todas
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            
-            // Mostrar seleccionada
             document.getElementById(tabId).classList.add('active');
             event.currentTarget.classList.add('active');
+        }
+
+        function addRow(containerId) {
+            const container = document.getElementById(containerId);
+            const isIngreso = containerId === 'ingreso-container';
+            const html = isIngreso 
+                ? `<div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700"><input type="text" placeholder="Ente/Donante" class="bg-transparent border-none p-1 w-full focus:outline-none"><input type="date" class="bg-transparent border-none p-1 w-full focus:outline-none"><input type="text" placeholder="Cód/Barra" class="bg-transparent border-none p-1 w-full focus:outline-none"><input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none"><div class="flex items-center gap-2"><input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none"><button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button></div></div>`
+                : `<div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700"><input type="text" placeholder="Destino" class="bg-transparent border-none p-1 w-full focus:outline-none"><input type="text" placeholder="Contacto" class="bg-transparent border-none p-1 w-full focus:outline-none"><input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none"><div class="flex items-center gap-2"><input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none"><button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button></div></div>`;
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        function removeRow(btn) {
+            btn.parentElement.parentElement.remove();
         }
     </script>
 </body>
