@@ -54,13 +54,13 @@
         </section>
     </div>
 
-    <script>
-        // Inicialización segura de Supabase
-        window.supabaseClient = window.supabaseClient || supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
-        const supabase = window.supabaseClient;
+<script>
+        // Inicialización del cliente usando un nombre distinto para evitar conflicto
+        const sbClient = supabase.createClient('TU_URL', 'TU_KEY');
+        
         let currentUser = null;
 
-        // Función de cifrado SHA-256
+        // Función de cifrado SHA-256 para seguridad
         async function sha256(str) {
             const msgUint8 = new TextEncoder().encode(str);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -74,7 +74,7 @@
             const pass = document.getElementById('login-pass').value;
             const hashedInput = await sha256(pass);
 
-            const { data, error } = await supabase
+            const { data, error } = await sbClient
                 .from('users')
                 .select('*, centers(name)')
                 .eq('username', user)
@@ -95,8 +95,11 @@
         async function buscar(query, tabla, campo, containerId) {
             const container = document.getElementById(containerId);
             if (query.length < 2) { container.style.display = 'none'; return; }
-            const { data } = await supabase.from(tabla).select(campo).ilike(campo, `%${query}%`).limit(5);
+            
+            const { data } = await sbClient.from(tabla).select(campo).ilike(campo, `%${query}%`).limit(5);
+            
             if (!data || data.length === 0) { container.style.display = 'none'; return; }
+            
             container.style.display = 'block';
             container.innerHTML = data.map(item => `
                 <div class="suggestion-item" onclick="seleccionar('${item[campo]}', '${containerId}')">
@@ -110,11 +113,14 @@
             document.getElementById(containerId).style.display = 'none';
         }
 
+        // Listeners para búsqueda
         document.getElementById('in-name').addEventListener('input', (e) => buscar(e.target.value, 'items', 'name', 'suggestions-items'));
         document.getElementById('in-entity').addEventListener('input', (e) => buscar(e.target.value, 'entities', 'name', 'suggestions-entities'));
 
         // Registro de Movimiento
         document.getElementById('btn-save').onclick = async () => {
+            if (!currentUser) return alert("Debes iniciar sesión");
+
             const data = {
                 p_item_name: document.getElementById('in-name').value,
                 p_item_barcode: document.getElementById('in-barcode').value,
@@ -126,13 +132,19 @@
                 p_user_id: currentUser.id
             };
 
-            const { error } = await supabase.rpc('register_movement', data);
-            if (error) alert("Error: " + error.message);
-            else {
-                alert("Movimiento registrado correctamente");
-                document.querySelectorAll('input').forEach(i => { if(i.id !== 'login-user' && i.id !== 'login-pass') i.value = ''; });
+            const { error } = await sbClient.rpc('register_movement', data);
+            
+            if (error) {
+                alert("Error: " + error.message);
+            } else {
+                alert("Movimiento registrado correctamente para " + currentUser.centers.name);
+                // Limpiar campos excepto los de login
+                document.querySelectorAll('input').forEach(i => { 
+                    if(i.id !== 'login-user' && i.id !== 'login-pass') i.value = ''; 
+                });
             }
         };
     </script>
+
 </body>
 </html>
