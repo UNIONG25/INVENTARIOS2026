@@ -129,20 +129,25 @@
         document.getElementById('in-entity').addEventListener('input', (e) => buscar(e.target.value, 'entities', 'name', 'suggestions-entities'));
 
         document.getElementById('btn-save').onclick = async () => {
-            const data = {
-                p_item_name: document.getElementById('in-name').value,
-                p_item_barcode: document.getElementById('in-barcode').value,
-                p_entity_name: document.getElementById('in-entity').value,
-                p_entity_type: document.getElementById('in-type').value === 'ingreso' ? 'donante' : 'receptor',
-                p_quantity: parseInt(document.getElementById('in-qty').value),
-                p_type: document.getElementById('in-type').value,
-                p_center_id: currentUser.center_id,
-                p_user_id: currentUser.id
-            };
-            const { error } = await sbClient.rpc('register_movement', data);
-            if (error) alert("Error: " + error.message);
-            else { alert("Movimiento guardado"); cargarHistorial(); }
-        };
+    const fecha = obtenerFechaRegistro(); // Usamos la función del archivo externo
+
+    const data = {
+        p_item_name: document.getElementById('in-name').value,
+        p_item_barcode: document.getElementById('in-barcode').value,
+        p_entity_name: document.getElementById('in-entity').value,
+        p_entity_type: document.getElementById('in-type').value === 'ingreso' ? 'donante' : 'receptor',
+        p_quantity: parseInt(document.getElementById('in-qty').value),
+        p_type: document.getElementById('in-type').value,
+        p_center_id: currentUser.center_id,
+        p_user_id: currentUser.id,
+        p_created_at: fecha // Asegúrate de que tu función RPC acepte este nuevo parámetro
+    };
+
+    const { error } = await sbClient.rpc('register_movement', data);
+    
+    if (error) alert("Error: " + error.message);
+    else { alert("Movimiento guardado"); cargarHistorial(); }
+};
     </script>
 </body>
 </html>
