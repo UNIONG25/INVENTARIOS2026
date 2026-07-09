@@ -27,3 +27,15 @@ async function adminObtenerStock() {
     }
     return data; // Devuelve el array con [item_name, total_stock]
 }
+
+// admin_logic.js
+
+// Función para obtener la fecha seleccionada o la actual
+function obtenerFechaRegistro() {
+    const fechaInput = document.getElementById('in-date').value;
+    // Si el input está vacío, devuelve la fecha de hoy en formato YYYY-MM-DD
+    return fechaInput || new Date().toISOString().split('T')[0];
+}
+
+// Nota: Ahora necesitamos actualizar tu función de registro en el archivo principal (index.html)
+// para que tome esta fecha.
