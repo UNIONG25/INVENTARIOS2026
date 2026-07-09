@@ -170,13 +170,18 @@ async function buscar(query, tabla, campo, containerId) {
         </div>`).join('');
 }
 
-        function seleccionar(valor, containerId) {
-    if (containerId === 'suggestions-entities') {
-        document.getElementById('in-entity').value = valor;
-        cargarContactoEnte(valor); // <--- NUEVO: autocompleta el contacto
-    } else {
+       function seleccionar(valor, containerId) {
+    // Identificamos el input según el contenedor
+    if (containerId === 'suggestions-items') {
         document.getElementById('in-name').value = valor;
+        // Opcional: Si seleccionas un producto, podrías buscar su barcode asociado
+    } else if (containerId === 'suggestions-entities') {
+        document.getElementById('in-entity').value = valor;
+        // Llamada a la función de autocompletar contacto que creamos antes
+        if (typeof cargarContactoEnte === 'function') cargarContactoEnte(valor);
     }
+    
+    // Ocultar todas las cajas de sugerencias
     document.getElementById(containerId).style.display = 'none';
 }
 
