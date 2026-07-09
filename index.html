@@ -121,10 +121,14 @@
         }
 
         function seleccionar(valor, containerId) {
-            const inputId = containerId === 'suggestions-items' ? 'in-name' : 'in-entity';
-            document.getElementById(inputId).value = valor;
-            document.getElementById(containerId).style.display = 'none';
-        }
+    if (containerId === 'suggestions-entities') {
+        document.getElementById('in-entity').value = valor;
+        cargarContactoEnte(valor); // <--- NUEVO: autocompleta el contacto
+    } else {
+        document.getElementById('in-name').value = valor;
+    }
+    document.getElementById(containerId).style.display = 'none';
+}
 
         document.getElementById('in-name').addEventListener('input', (e) => buscar(e.target.value, 'items', 'name', 'suggestions-items'));
         document.getElementById('in-entity').addEventListener('input', (e) => buscar(e.target.value, 'entities', 'name', 'suggestions-entities'));
