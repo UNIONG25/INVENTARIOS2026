@@ -34,8 +34,46 @@ async function ejecutarRecepcion() {
     resultDiv.classList.remove('hidden');
     resultDiv.style.backgroundColor = "#854d0e"; // Amarillo
     resultDiv.textContent = "Procesando...";
+    
+    // Buscar el traslado por código de guía
+    const { data, error } = await sbClient
+      .from('traslados')
+      .select('*')
+      .eq('guia_code', trackingCode)
+      .single();
+    
+    if (error || !data) {
+      resultDiv.style.backgroundColor = "#991b1b"; // Rojo
+      resultDiv.textContent = "❌ Guía no encontrada: " + (error?.message || "No existe este código");
+      return;
+    }
+    
+    // Actualizar estado a 'recibido'
+    const { error: updateError } = await sbClient
+      .from('traslados')
+      .update({ estado: 'recibido', fecha_recepcion: new Date().toISOString().split('T')[0] })
+      .eq('guia_code', trackingCode);
+    
+    if (updateError) throw updateError;
+    
+    // Mostrar resultado exitoso
+    resultDiv.style.backgroundColor = "#166534"; // Verde
+    resultDiv.innerHTML = `
+      ✅ <strong>Guía recibida exitosamente</strong><br>
+      Código: <strong>${trackingCode}</strong><br>
+      Origen: ${data.origen}<br>
+      Destino: ${data.destino}<br>
+      Productos: ${data.items.length}
+    `;
+    
+    // Limpiar campo después de 3 segundos
+    setTimeout(() => {
+      document.getElementById('in-tracking-code').value = '';
+      resultDiv.classList.add('hidden');
+    }, 3000);
+    
   } catch (error) {
-    resultDiv.style.backgroundColor = "#991b1b"; // Rojo
+    resultDiv.style.backgroundColor = "#991b1b";
     resultDiv.textContent = "❌ Error: " + error.message;
   }
 }
@@ -89,9 +127,9 @@ async function procesarTraslado() {
       estado: 'pendiente'
     };
     
-    // Opcional: Enviar a Supabase si tienes una tabla para traslados
-    // const { error } = await sbClient.from('traslados').insert([trasladoData]);
-    // if (error) throw error;
+    // Enviar a Supabase
+    const { data, error } = await sbClient.from('traslados').insert([trasladoData]).select();
+    if (error) throw error;
     
     // Mostrar resultado exitoso
     resultDiv.style.backgroundColor = "#166534"; // Verde
