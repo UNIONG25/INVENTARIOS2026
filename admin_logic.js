@@ -45,6 +45,63 @@ async function registrarMovimiento() {
         p_created_at: new Date().toISOString().split('T')[0]
     };
 
+    // Lógica central para traslados con stock flotante
+async function procesarTraslado(origenId, destinoId, items) {
+    // 1. Iniciar el movimiento tipo despacho
+    const { data: movement, error } = await sbClient
+        .from('movements')
+        .insert([{
+            movement_type: 'despacho',
+            source_center_id: origenId,
+            destination_center_id: destinoId,
+            status: 'en_transito'
+        }])
+        .select();
+
+    if (error) throw error;
+
+    // 2. Generar el tracking code y registrar la guía
+    const trackingCode = "GUIA-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    await sbClient.from('shipments').insert([{
+        tracking_code: trackingCode,
+        movement_id: movement[0].id
+    }]);
+
+    // 3. Registrar los detalles (items)
+    const details = items.map(item => ({
+        movement_id: movement[0].id,
+        item_id: item.id,
+        quantity: item.qty
+    }));
+    await sbClient.from('movement_details').insert(details);
+
+    return trackingCode;
+}
+
+// Lógica para confirmar recepción
+async function confirmarRecepcion(trackingCode) {
+    // 1. Buscar la guía y obtener el movement_id
+    const { data: shipment } = await sbClient
+        .from('shipments')
+        .select('*, movements(*)')
+        .eq('tracking_code', trackingCode)
+        .single();
+
+    if (!shipment || shipment.status === 'recibido') throw new Error("Guía inválida o ya recibida");
+
+    // 2. Actualizar estado de movimiento a 'recibido'
+    await sbClient.from('movements')
+        .update({ status: 'recibido' })
+        .eq('id', shipment.movement_id);
+
+    // 3. Actualizar la guía
+    await sbClient.from('shipments')
+        .update({ status: 'recibido', arrival_date: new Date().toISOString() })
+        .eq('tracking_code', trackingCode);
+
+    return true; // Aquí dispararíamos la suma al stock del destino
+}
+
     const { error } = await sbClient.rpc('register_movement', data);
     if (error) alert("Error: " + error.message);
     else alert("Registrado exitosamente");
