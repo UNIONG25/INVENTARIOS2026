@@ -1,0 +1,146 @@
+/* css/estilos.css */
+
+/* 1. VARIABLES GLOBALES (Fácil mantenimiento y consistencia) */
+:root {
+    --color-principal: #0284c7;      /* Azul logístico */
+    --color-exito: #16a34a;          /* Verde para "Recibido" */
+    --color-alerta: #ea580c;         /* Naranja para "En Tránsito" */
+    --color-peligro: #dc2626;        /* Rojo para "Crítico / Escasez" */
+    --color-fondo: #f8fafc;          /* Gris muy claro para descanso visual */
+    --color-superficie: #ffffff;     /* Blanco para tarjetas y tablas */
+    --color-texto: #1e293b;          /* Gris oscuro para alta legibilidad */
+    --fuente-sistema: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 2. RESETEO BÁSICO Y SEGURIDAD VISUAL */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--fuente-sistema);
+    background-color: var(--color-fondo);
+    color: var(--color-texto);
+    line-height: 1.5;
+    padding: 20px;
+}
+
+/* 3. DISEÑO DE LA INTERFAZ (Layout de Emergencia) */
+.contenedor {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Tarjetas (Cards) para formularios y módulos */
+.tarjeta {
+    background-color: var(--color-superficie);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* Sistema de Rejilla Flexible para los Tableros y Formularios */
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+/* 4. COMPONENTES: TABLAS DE INVENTARIO Y TRASLADOS */
+.tabla-logistica {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background-color: var(--color-superficie);
+}
+
+.tabla-logistica th, .tabla-logistica td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.tabla-logistica th {
+    background-color: #f1f5f9;
+    font-weight: 600;
+}
+
+/* 5. BOTONES E INPUTS SEGUROS */
+input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: inherit;
+    margin-top: 5px;
+    margin-bottom: 15px;
+}
+
+input:focus, select:focus {
+    outline: 2px solid var(--color-principal);
+}
+
+button {
+    background-color: var(--color-principal);
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #0369a1;
+}
+
+/* 6. ESTADOS DE ALERTA LOGÍSTICA (Estadísticas y Estados) */
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    display: inline-block;
+}
+.badge-transito { background-color: #ffedd5; color: var(--color-alerta); }
+.badge-recibido { background-color: #dcfce7; color: var(--color-exito); }
+.badge-critico  { background-color: #fee2e2; color: var(--color-peligro); }
+
+/* Barra de Navegación de Emergencia */
+.navbar {
+    background-color: var(--color-texto);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    border-radius: 6px;
+}
+
+.navbar-marca {
+    color: white;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 1.2rem;
+}
+
+.navbar-menu {
+    display: flex;
+    gap: 15px;
+    list-style: none;
+}
+
+.navbar-link {
+    color: #94a3b8;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.navbar-link:hover, .navbar-link.activo {
+    color: white;
+}

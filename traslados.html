@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <title>Traslado entre Centros - Logística de Emergencia</title>
+    <link rel="stylesheet" href="css/estilos.css">
+    <script src="js/libs/supabase-js.js"></script>
+    <script src="js/libs/html5-qrcode.min.js"></script>
+</head>
+<body>
+<nav class="navbar">
+    <a href="dashboard.html" class="navbar-marca">🛡️ LogísticaDesastres</a>
+    <ul class="navbar-menu">
+        <li><a href="dashboard.html" class="navbar-link">Panel General</a></li>
+        <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
+        <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
+        <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
+    </ul>
+</nav>
+
+    <div class="contenedor">
+        <header style="margin-bottom: 20px;">
+            <h1>Despacho de Traslados (Entre Centros)</h1>
+            <p>Mueve suministros de un centro de acopio a otro para equilibrar inventarios.</p>
+        </header>
+
+        <div class="tarjeta">
+            <h2>1. Información Logística del Envío</h2>
+            <div class="grid-2">
+                <div>
+                    <label for="centro-origen">Centro de Acopio Origen (Sale stock):</label>
+                    <select id="centro-origen"><option value="">Seleccione origen...</option></select>
+                </div>
+                <div>
+                    <label for="centro-destino">Centro de Acopio Destino (Recibe):</label>
+                    <select id="centro-destino"><option value="">Seleccione destino...</option></select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label for="chofer-nombre">Nombre del Conductor / Chofer:</label>
+                    <input type="text" id="chofer-nombre" placeholder="Ej. Carlos Mendoza">
+                </div>
+                <div>
+                    <label for="chofer-contacto">Teléfono o Radio del Chofer:</label>
+                    <input type="text" id="chofer-contacto" placeholder="Ej. 0424-1112233">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label for="vehiculo-placa">Placa del Vehículo:</label>
+                    <input type="text" id="vehiculo-placa" placeholder="Ej. AB123CD">
+                </div>
+                <div>
+                    <label for="vehiculo-modelo">Modelo / Capacidad del Camión:</label>
+                    <input type="text" id="vehiculo-modelo" placeholder="Ej. Camión NPR 4 Ton">
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="tarjeta">
+                <h2>2. Escanear Carga a Despachar</h2>
+                <div id="lector-camara" style="width: 100%; border-radius: 8px; overflow: hidden; background: #000;"></div>
+                <p style="margin-top: 10px;">Código detectado: <strong id="codigo-detectado" style="color: var(--color-alerta);">Ninguno</strong></p>
+            </div>
+
+            <div class="tarjeta">
+                <h2>3. Manifiesto de Carga (Suministros en Camión)</h2>
+                <table class="tabla-logistica">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad a Enviar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-carga-cuerpo">
+                        </tbody>
+                </table>
+                <button id="btn-despachar-camion" style="margin-top: 20px; width: 100%; background-color: var(--color-alerta); font-size: 1.1rem;">
+                    🚚 Autorizar Despacho y Colocar En Tránsito
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/supabase-config.js"></script>
+    <script>
+        let itemsCarga = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!window.supabaseClient) return alert("Supabase no conectado.");
+            await cargarSelectoresCentros();
+            inicializarEscaner();
+        });
+
+        async function cargarSelectoresCentros() {
+            const { data: centros } = await window.supabaseClient.from('centros_acopio').select('id, nombre');
+            const orig = document.getElementById('centro-origen');
+            const dest = document.getElementById('centro-destino');
+            centros.forEach(c => {
+                orig.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+                dest.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+            });
+        }
+
+        function inicializarEscaner() {
+            const scanner = new Html5QrcodeScanner("lector-camara", { fps: 15, qrbox: { width: 250, height: 150 } });
+            scanner.render(async (codigo) => {
+                document.getElementById('codigo-detectado').textContent = codigo;
+                
+                const { data: prod } = await window.supabaseClient.from('productos_maestro').select('*').eq('codigo_barras', codigo).single();
+                if (!prod) return alert("El producto no está registrado en el catálogo maestro. Regístrelo primero en Donaciones.");
+                
+                let cant = parseInt(prompt(`¿Cuántas unidades de "${prod.nombre_producto}" suben al camión?`, "1")) || 1;
+                
+                itemsCarga.push({ producto_id: prod.id, nombre: prod.nombre_producto, cantidad: cant });
+                
+                const tabla = document.getElementById('lista-carga-cuerpo');
+                tabla.innerHTML += `<tr><td><strong>${prod.nombre_producto}</strong></td><td>${cant} unidades</td></tr>`;
+            });
+        }
+
+        document.getElementById('btn-despachar-camion').addEventListener('click', async () => {
+            const supabase = window.supabaseClient;
+            const origId = document.getElementById('centro-origen').value;
+            const destId = document.getElementById('centro-destino').value;
+
+            if (!origId || !destId || origId === destId) return alert("Verifique los centros de origen y destino.");
+            if (itemsCarga.length === 0) return alert("El camión está vacío.");
+
+            // 1. Registrar la cabecera del traslado
+            const { data: traslado, error: errCab } = await supabase.from('traslados_entre_centros').insert([{
+                centro_origen_id: origId,
+                centro_destino_id: destId,
+                transportista_nombre: document.getElementById('chofer-nombre').value || "No especificado",
+                transportista_contacto: document.getElementById('chofer-contacto').value || "No especificado",
+                vehiculo_placa: document.getElementById('vehiculo-placa').value || "S/P",
+                vehiculo_modelo: document.getElementById('vehiculo-modelo').value || "S/M"
+            }]).select().single();
+
+            if (errCab) return alert("Error al registrar el manifiesto de traslado.");
+
+            // 2. Insertar detalles y restar stock físico del origen
+            for (const item of itemsCarga) {
+                await supabase.from('detalle_traslado_centros').insert([{
+                    traslado_id: traslado.id,
+                    producto_id: item.producto_id,
+                    cantidad_despachada: item.cantidad
+                }]);
+
+                // Llamada RPC para descontar inventario del centro que envía
+                await supabase.rpc('restar_stock_centro', {
+                    p_centro_id: parseInt(origId),
+                    p_producto_id: parseInt(item.producto_id),
+                    p_cantidad: parseInt(item.cantidad)
+                });
+            }
+
+            alert("✓ Camión despachado correctamente. La carga figura 'En Tránsito'.");
+            location.reload();
+        });
+    </script>
+</body>
+</html>

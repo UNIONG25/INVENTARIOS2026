@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <title>Registro de Donaciones - Logística de Emergencia</title>
+    <link rel="stylesheet" href="css/estilos.css">
+    
+    <script src="js/libs/supabase-js.js"></script>
+    <script src="js/libs/html5-qrcode.min.js"></script>
+</head>
+<body>
+<nav class="navbar">
+    <a href="dashboard.html" class="navbar-marca">🛡️ LogísticaDesastres</a>
+    <ul class="navbar-menu">
+        <li><a href="dashboard.html" class="navbar-link">Panel General</a></li>
+        <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
+        <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
+        <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
+    </ul>
+</nav>
+
+    <div class="contenedor">
+        <header style="margin-bottom: 20px;">
+            <h1>Recepción de Donaciones</h1>
+            <p>Punto de entrada de suministros para el inventario de emergencia.</p>
+        </header>
+
+        <div class="tarjeta">
+            <h2>1. Datos de Origen y Destino</h2>
+            <div class="grid-2">
+                <div>
+                    <label for="centro-receptor">Centro de Acopio que Recibe la Ayuda:</label>
+                    <select id="centro-receptor">
+                        <option value="">Seleccione un Centro...</option>
+                        </select>
+                </div>
+                <div>
+                    <label for="donante-nombre">Nombre o Razón Social del Donante (Opcional):</label>
+                    <input type="text" id="donante-nombre" placeholder="Ej. ONG Cruz Vital o Anónimo">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label for="donante-tipo">Tipo de Donante:</label>
+                    <select id="donante-tipo">
+                        <option value="Particular">Particular</option>
+                        <option value="Empresa">Empresa Privada</option>
+                        <option value="ONG">ONG / Organización</option>
+                        <option value="Gobierno">Institución Pública</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="donante-telefono">Número de Contacto:</label>
+                    <input type="text" id="donante-telefono" placeholder="Ej. 0412-0000000">
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="tarjeta">
+                <h2>2. Escanear Código de Barras</h2>
+                <p style="margin-bottom: 10px; color: #64748b;">Apunta el código de barras del producto hacia la cámara.</p>
+                
+                <div id="lector-camara" style="width: 100%; border-radius: 8px; overflow: hidden; background: #000;"></div>
+                
+                <p style="margin-top: 10px;">Último código detectado: <strong id="codigo-detectado" style="color: var(--color-principal);">Ninguno</strong></p>
+            </div>
+
+            <div class="tarjeta">
+                <h2>3. Productos en esta Donación</h2>
+                <table class="tabla-logistica">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th>Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-cuerpo">
+                        </tbody>
+                </table>
+                
+                <button id="btn-guardar-donacion" style="margin-top: 20px; width: 100%; background-color: var(--color-exito); font-size: 1.1rem;">
+                    ✓ Consolidar Donación e Incrementar Stock
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/supabase-config.js"></script>
+
+    <script>
+        let productosDonados = []; // Guarda temporalmente lo escaneado antes de subirlo
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!window.supabaseClient) {
+                alert("Error: El cliente de Supabase no está configurado correctamente.");
+                return;
+            }
+            
+            // 1. Cargar Centros de Acopio en el menú desplegable
+            await cargarCentrosReceptores();
+
+            // 2. Encender el escáner de la cámara
+            inicializarEscaner();
+        });
+
+        // Conecta con Supabase y trae la lista de centros abiertos
+        async function cargarCentrosReceptores() {
+            const { data: centros, error } = await window.supabaseClient
+                .from('centros_acopio')
+                .select('id, nombre');
+            
+            if (error) {
+                console.error("Error al cargar los centros:", error);
+                return;
+            }
+
+            const selector = document.getElementById('centro-receptor');
+            centros.forEach(c => {
+                const opcion = document.createElement('option');
+                opcion.value = c.id;
+                opcion.textContent = c.nombre;
+                selector.appendChild(opcion);
+            });
+        }
+
+        // Configura y activa la cámara del dispositivo
+        function inicializarEscaner() {
+            const html5QrcodeScanner = new Html5QrcodeScanner(
+                "lector-camara", 
+                { fps: 15, qrbox: { width: 250, height: 150 } } // Optimizado para códigos de barra horizontales
+            );
+            html5QrcodeScanner.render(onScanSuccess);
+        }
+
+        // Se ejecuta automáticamente al detectar un código de barras
+        async function onScanSuccess(decodedText) {
+            document.getElementById('codigo-detectado').textContent = decodedText;
+            
+            // Buscar el código escaneado en el catálogo maestro
+            const { data: producto, error } = await window.supabaseClient
+                .from('productos_maestro')
+                .select('*')
+                .eq('codigo_barras', decodedText)
+                .single();
+
+            if (error && error.code === 'PGRST116') {
+                // El código no está en la base de datos (Producto Nuevo)
+                let nombre = prompt("¡Código NUEVO detectado! Ingrese el nombre del producto:");
+                let categoria = prompt("Ingrese la categoría (Alimentos, Medicamentos, Agua, Higiene, Ropa):");
+                
+                if (nombre && categoria) {
+                    const { data: nuevoProd, error: errIns } = await window.supabaseClient
+                        .from('productos_maestro')
+                        .insert([{ codigo_barras: decodedText, nombre_producto: nombre, categoria: categoria }])
+                        .select()
+                        .single();
+                    
+                    if (!errIns) procesarCantidadInsumo(nuevoProd);
+                }
+            } else if (producto) {
+                // Producto existente
+                procesarCantidadInsumo(producto);
+            }
+        }
+
+        // Solicita la cantidad ingresada y la lista en pantalla
+        function procesarCantidadInsumo(producto) {
+            let cantidad = parseInt(prompt(`¿Cuántas unidades ingresan de "${producto.nombre_producto}"?`, "1")) || 1;
+            
+            // Guardar en la estructura temporal en memoria
+            productosDonados.push({
+                producto_id: producto.id,
+                nombre: producto.nombre_producto,
+                categoria: producto.categoria,
+                cantidad: cantidad
+            });
+            
+            // Pintar la fila en la tabla de la pantalla
+            const cuerpoTabla = document.getElementById('lista-cuerpo');
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td><strong>${producto.nombre_producto}</strong></td>
+                <td><span class="badge badge-transito">${producto.categoria}</span></td>
+                <td>${cantidad} unidades</td>
+            `;
+            cuerpoTabla.appendChild(fila);
+        }
+
+        // Botón final: Envía la carga completa y consolida stocks
+        document.getElementById('btn-guardar-donacion').addEventListener('click', async () => {
+            const supabase = window.supabaseClient;
+            const centroId = document.getElementById('centro-receptor').value;
+            const nombreDonante = document.getElementById('donante-nombre').value || "Anónimo";
+
+            if (!centroId) return alert("Por favor, seleccione qué centro está recibiendo la donación.");
+            if (productosDonados.length === 0) return alert("No hay productos escaneados en la lista.");
+
+            // A. Registrar donante si no es anónimo
+            let donanteId = null;
+            if (nombreDonante !== "Anónimo") {
+                const { data: donante } = await supabase.from('donantes').insert([{
+                    nombre_o_razon_social: nombreDonante,
+                    tipo_donante: document.getElementById('donante-tipo').value,
+                    telefono: document.getElementById('donante-telefono').value
+                }]).select().single();
+                donanteId = donante?.id;
+            }
+
+            // B. Crear el registro principal (Cabecera)
+            const { data: donacionCabecera, error: errCab } = await supabase.from('donaciones_ingresos').insert([{
+                centro_receptor_id: centroId,
+                donante_id: donanteId
+            }]).select().single();
+
+            if (errCab) return alert("Error al abrir manifiesto de donación.");
+
+            // C. Guardar el desglose y actualizar el balance de inventario físico
+            for (const prod of productosDonados) {
+                await supabase.from('detalle_donacion_ingreso').insert([{
+                    donacion_id: donacionCabecera.id,
+                    producto_id: prod.producto_id,
+                    cantidad: prod.cantidad
+                }]);
+
+                // Llamada a la función SQL que creamos en Supabase para sumar el stock de forma segura
+                await supabase.rpc('ingresar_o_sumar_stock', {
+                    p_centro_id: parseInt(centroId),
+                    p_producto_id: parseInt(prod.producto_id),
+                    p_cantidad: parseInt(prod.cantidad)
+                });
+            }
+
+            alert("✓ Donación procesada con éxito. Los balances de inventario han sido actualizados.");
+            location.reload(); // Recarga la página para dejarla limpia para la próxima recepción
+        });
+    </script>
+</body>
+</html>

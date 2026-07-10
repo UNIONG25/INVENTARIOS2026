@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <title>Panel de Control - Logística de Emergencia</title>
+    <link rel="stylesheet" href="css/estilos.css">
+    
+    <script src="js/libs/supabase-js.js"></script>
+    <script src="js/libs/chart.min.js"></script>
+</head>
+<body>
+<nav class="navbar">
+    <a href="dashboard.html" class="navbar-marca">🛡️ LogísticaDesastres</a>
+    <ul class="navbar-menu">
+        <li><a href="dashboard.html" class="navbar-link">Panel General</a></li>
+        <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
+        <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
+        <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
+    </ul>
+</nav>
+
+    <div class="contenedor">
+        <header style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>Panel de Logística Humanitaria</h1>
+                <p>Monitoreo de Centros de Acopio y Refugios en Tiempo Real</p>
+            </div>
+            <select id="filtro-centro" style="width: auto; margin: 0;">
+                <option value="todos">Todos los Centros</option>
+            </select>
+        </header>
+
+        <div class="grid-2" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 25px;">
+            <div class="tarjeta" style="border-left: 5px solid var(--color-principal);">
+                <h3>Total Donaciones</h3>
+                <p id="kpi-donaciones" style="font-size: 2rem; font-weight: bold; color: var(--color-principal);">0</p>
+            </div>
+            <div class="tarjeta" style="border-left: 5px solid var(--color-alerta);">
+                <h3>En Tránsito</h3>
+                <p id="kpi-transito" style="font-size: 2rem; font-weight: bold; color: var(--color-alerta);">0 camiones</p>
+            </div>
+            <div class="tarjeta" style="border-left: 5px solid var(--color-peligro);">
+                <h3>Alertas Críticas</h3>
+                <p id="kpi-alertas" style="font-size: 2rem; font-weight: bold; color: var(--color-peligro);">0 ítems</p>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="tarjeta">
+                <h3>Suministros Disponibles por Categoría</h3>
+                <div style="position: relative; height:300px;">
+                    <canvas id="graficoCategorias"></canvas>
+                </div>
+            </div>
+
+            <div class="tarjeta">
+                <h3>Auditoría de Traslados (Mermas Detectadas)</h3>
+                <div style="position: relative; height:300px;">
+                    <canvas id="graficoMermas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="tarjeta" style="margin-top: 25px;">
+            <h3>Monitoreo de Traslados Activos (Entre Centros)</h3>
+            <table class="tabla-logistica">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Vehículo / Placa</th>
+                        <th>Transportista</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-traslados-cuerpo">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="js/supabase-config.js"></script>
+    <script src="js/modulos/estadisticas.js"></script>
+</body>
+</html>
