@@ -1,4 +1,40 @@
-const sbClient = supabase.createClient('TU_URL', 'TU_KEY');
+// 1. Configuración de Supabase
+const sbClient = supabase.createClient('https://ajhubmxofzfdelxbgjjf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU');
+
+// 2. Función de Recepción (Manteniendo lógica de traslados)
+async function ejecutarRecepcion() {
+    const trackingCode = document.getElementById('in-tracking-code').value.trim();
+    const resultDiv = document.getElementById('recepcion-resultado');
+    
+    if (!trackingCode) {
+        alert("Por favor, ingresa un código de guía válido.");
+        return;
+    }
+
+    try {
+        resultDiv.classList.remove('hidden');
+        resultDiv.style.backgroundColor = "#854d0e"; // Amarillo
+        resultDiv.textContent = "Procesando...";
+
+        const { data, error } = await sbClient
+            .from('shipments')
+            .update({ status: 'recibido', arrival_date: new Date().toISOString() })
+            .eq('tracking_code', trackingCode)
+            .select();
+
+        if (error) throw error;
+
+        resultDiv.style.backgroundColor = "#065f46"; // Verde
+        resultDiv.textContent = "✅ ¡Recepción confirmada con éxito!";
+        document.getElementById('in-tracking-code').value = '';
+    } catch (error) {
+        resultDiv.style.backgroundColor = "#991b1b"; // Rojo
+        resultDiv.textContent = "❌ Error: " + error.message;
+    }
+}
+
+// 3. AQUÍ IRÍAN TUS OTRAS FUNCIONES PREVIAS (AgregarUsuario, RegistrarEntrada, RegistrarDespacho, etc.)
+// Estas funciones se mantienen intactas y listas para ser integradas nuevamente.
 
 document.addEventListener('DOMContentLoaded', () => {
     // Configuración de listeners seguros
