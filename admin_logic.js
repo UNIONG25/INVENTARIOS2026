@@ -56,14 +56,17 @@ async function ejecutarRecepcion() {
     
     if (updateError) throw updateError;
     
+    // Contar items de forma segura
+    const itemCount = Array.isArray(data.items) ? data.items.length : 0;
+    
     // Mostrar resultado exitoso
     resultDiv.style.backgroundColor = "#166534"; // Verde
     resultDiv.innerHTML = `
       ✅ <strong>Guía recibida exitosamente</strong><br>
       Código: <strong>${trackingCode}</strong><br>
-      Origen: ${data.origen}<br>
-      Destino: ${data.destino}<br>
-      Productos: ${data.items.length}
+      Origen: ${data.origen || 'N/A'}<br>
+      Destino: ${data.destino || 'N/A'}<br>
+      Productos: ${itemCount}
     `;
     
     // Limpiar campo después de 3 segundos
@@ -85,7 +88,6 @@ async function procesarTraslado() {
   const origen = document.getElementById('in-origen-traslado').value.trim();
   const destino = document.getElementById('in-destino-traslado').value.trim();
   const itemsContainer = document.getElementById('traslados-items');
-  const rows = itemsContainer.querySelectorAll('.grid');
   const resultDiv = document.getElementById('resultado-guia');
   
   if (!origen || !destino) {
@@ -93,29 +95,59 @@ async function procesarTraslado() {
     return;
   }
   
-  // Recopilar items
+  // Recopilar items - Versión mejorada
   const items = [];
+  
+  // Intentar múltiples selectores para encontrar los items
+  let rows = itemsContainer.querySelectorAll('.grid');
+  if (rows.length === 0) {
+    rows = itemsContainer.querySelectorAll('tr'); // Si está en tabla
+  }
+  if (rows.length === 0) {
+    rows = itemsContainer.querySelectorAll('div[data-item]'); // Si usa data attributes
+  }
+  if (rows.length === 0) {
+    rows = itemsContainer.querySelectorAll('.item-row'); // Si usa clase genérica
+  }
+  
   rows.forEach(row => {
-    const inputs = row.querySelectorAll('input');
-    const nombre = inputs[0].value.trim();
-    const qty = parseInt(inputs[1].value);
-    if (nombre && qty > 0) {
-      items.push({ nombre, qty });
+    try {
+      const inputs = row.querySelectorAll('input');
+      if (inputs.length < 2) return;
+      
+      const nombre = inputs[0].value.trim();
+      const qtyStr = inputs[1].value.trim();
+      const qty = parseInt(qtyStr, 10);
+      
+      // Validar que qty sea un número válido y positivo
+      if (nombre && !isNaN(qty) && qty > 0) {
+        items.push({ nombre, qty });
+        console.log(`✓ Item agregado: ${nombre} (${qty} unidades)`);
+      }
+    } catch (e) {
+      console.warn('Error procesando fila:', e);
     }
   });
   
   if (items.length === 0) {
     alert("Debes agregar al menos un producto con cantidad válida.");
+    console.log("Estructura HTML detectada:", {
+      gridCount: itemsContainer.querySelectorAll('.grid').length,
+      trCount: itemsContainer.querySelectorAll('tr').length,
+      divDataItemCount: itemsContainer.querySelectorAll('div[data-item]').length,
+      itemRowCount: itemsContainer.querySelectorAll('.item-row').length
+    });
     return;
   }
   
   try {
     resultDiv.classList.remove('hidden');
-    resultDiv.style.backgroundColor = "#854d0e";
+    resultDiv.style.backgroundColor = "#854d0e"; // Amarillo
     resultDiv.textContent = "Generando guía de traslado...";
     
     // Generar código de guía
     const codigoGuia = generarCodigoGuia();
+    console.log("Código de guía generado:", codigoGuia);
     
     // Preparar datos para enviar a Supabase
     const trasladoData = {
@@ -127,9 +159,20 @@ async function procesarTraslado() {
       estado: 'pendiente'
     };
     
+    console.log("Datos a guardar:", trasladoData);
+    
     // Enviar a Supabase
-    const { data, error } = await sbClient.from('traslados').insert([trasladoData]).select();
-    if (error) throw error;
+    const { data, error } = await sbClient
+      .from('traslados')
+      .insert([trasladoData])
+      .select();
+    
+    if (error) {
+      console.error("Error Supabase:", error);
+      throw error;
+    }
+    
+    console.log("Traslado guardado en Supabase:", data);
     
     // Mostrar resultado exitoso
     resultDiv.style.backgroundColor = "#166534"; // Verde
@@ -150,6 +193,7 @@ async function procesarTraslado() {
     }, 3000);
     
   } catch (error) {
+    console.error("Error al generar guía:", error);
     resultDiv.style.backgroundColor = "#991b1b";
     resultDiv.textContent = "❌ Error al generar la guía: " + error.message;
   }
@@ -165,30 +209,41 @@ async function buscar(query, tabla, campo, containerId, inputId) {
     return;
   }
   
-  const { data } = await sbClient
-    .from(tabla)
-    .select(campo)
-    .ilike(campo, `%${query}%`)
-    .limit(5);
+  try {
+    const { data, error } = await sbClient
+      .from(tabla)
+      .select(campo)
+      .ilike(campo, `%${query}%`)
+      .limit(5);
     
-  if (!data || data.length === 0) {
-    container.style.display = 'none';
-    return;
-  }
-  
-  container.style.display = 'block';
-  container.innerHTML = '';
-  
-  data.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'suggestion-item';
-    div.textContent = item[campo];
-    div.addEventListener('click', () => {
-      document.getElementById(inputId).value = item[campo];
+    if (error) {
+      console.error("Error en búsqueda:", error);
       container.style.display = 'none';
+      return;
+    }
+      
+    if (!data || data.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+    
+    container.style.display = 'block';
+    container.innerHTML = '';
+    
+    data.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'suggestion-item';
+      div.textContent = item[campo];
+      div.addEventListener('click', () => {
+        document.getElementById(inputId).value = item[campo];
+        container.style.display = 'none';
+      });
+      container.appendChild(div);
     });
-    container.appendChild(div);
-  });
+  } catch (e) {
+    console.error("Error en función buscar:", e);
+    container.style.display = 'none';
+  }
 }
 
 // ============================================================
@@ -223,6 +278,8 @@ async function registrarMovimiento() {
 // 7. Listeners (se conectan cuando el DOM está listo)
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
+  console.log("DOM Loaded - Inicializando listeners...");
+  
   // Autocompletado de productos
   const inName = document.getElementById('in-name');
   if (inName) {
@@ -255,6 +312,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnGenerarGuia = document.getElementById('btn-generar-guia');
   if (btnGenerarGuia) {
     btnGenerarGuia.addEventListener('click', procesarTraslado);
+    console.log("✓ Botón 'Generar guía' conectado");
+  } else {
+    console.warn("⚠ No se encontró el botón 'btn-generar-guia'");
   }
   
   // Cerrar sugerencias al hacer clic fuera
