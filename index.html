@@ -90,6 +90,27 @@
                 </div>
                 <button class="mt-6 bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-medium w-full">Guardar Despacho Total</button>
             </div>
+
+            <!-- Pestaña de Recepción de Traslados -->
+<div id="tab-recepcion" class="tab-content" style="display:none;">
+    <div class="card">
+        <h3 class="text-xl font-bold mb-4">📥 Recepción de Traslados</h3>
+        <div class="flex gap-2">
+            <input id="in-tracking-code" 
+                   type="text" 
+                   placeholder="Ingresa el código de guía (Ej: GUIA-XXXXXX)" 
+                   class="flex-grow p-2 rounded bg-slate-900 border border-slate-700 text-white">
+            <button onclick="ejecutarRecepcion()" 
+                    class="bg-blue-600 px-6 py-2 rounded text-white font-bold hover:bg-blue-700">
+                Confirmar
+            </button>
+        </div>
+        <div id="recepcion-resultado" class="mt-4 p-4 rounded hidden">
+            <!-- Aquí se mostrará el estado de la recepción -->
+        </div>
+    </div>
+</div>
+            
         </section>
 
         <!-- PESTAÑA: Inventario -->
