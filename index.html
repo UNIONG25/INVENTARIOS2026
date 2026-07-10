@@ -1,195 +1,249 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Inventario 2026</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .tab-btn.active { border-bottom: 2px solid #0ea5e9; color: #0ea5e9; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Inventario 2026</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .tab-btn.active { border-bottom: 2px solid #0ea5e9; color: #0ea5e9; }
+    .suggestions-box {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      margin-top: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 50;
+      display: none;
+    }
+    .suggestion-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #334155;
+    }
+    .suggestion-item:hover { background: #334155; }
+    .suggestion-item:last-child { border-bottom: none; }
+  </style>
 </head>
 <body class="min-h-screen text-slate-200">
 
-    <header class="bg-slate-900 border-b border-slate-800 p-4">
-        <div class="max-w-5xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold text-white">Inventario <span class="text-sky-500">2026</span></h1>
-            <div id="user-status" class="text-xs text-slate-400">Sesión: Administrador</div>
+  <header class="bg-slate-900 border-b border-slate-800 p-4">
+    <div class="max-w-5xl mx-auto flex justify-between items-center">
+      <h1 class="text-xl font-bold text-white">Inventario <span class="text-sky-500">2026</span></h1>
+      <div id="user-status" class="text-xs text-slate-400">Sesión: Administrador</div>
+    </div>
+  </header>
+
+  <nav class="max-w-5xl mx-auto mt-6 px-4">
+    <div class="flex flex-wrap space-x-6 border-b border-slate-700">
+      <button onclick="switchTab('config', this)" class="tab-btn active pb-2 text-sm font-medium transition-all">Configuración</button>
+      <button onclick="switchTab('ingreso', this)" class="tab-btn pb-2 text-sm font-medium transition-all">Entradas</button>
+      <button onclick="switchTab('despacho', this)" class="tab-btn pb-2 text-sm font-medium transition-all">Despachos</button>
+      <button onclick="switchTab('traslados', this)" class="tab-btn pb-2 text-sm font-medium transition-all">Traslados</button>
+      <button onclick="switchTab('recepcion', this)" class="tab-btn pb-2 text-sm font-medium transition-all">Recepción</button>
+      <button onclick="switchTab('inventario', this)" class="tab-btn pb-2 text-sm font-medium transition-all">Inventario</button>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto p-4 mt-6">
+    <section id="config" class="tab-content active space-y-6">
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+        <h2 class="text-lg font-semibold mb-4 text-white">Gestión de Usuarios</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="text" placeholder="Nuevo Usuario" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full outline-none focus:ring-2 focus:ring-sky-500">
+          <input type="password" placeholder="Clave" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
+          <select class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
+            <option>Nivel: Administrador</option>
+            <option>Nivel: Operador</option>
+          </select>
         </div>
-    </header>
+        <button class="mt-4 bg-sky-600 hover:bg-sky-500 text-white px-6 py-2 rounded-lg font-medium">Crear Usuario</button>
+      </div>
+    </section>
 
-    <nav class="max-w-5xl mx-auto mt-6 px-4">
-        <div class="flex flex-wrap space-x-6 border-b border-slate-700">
-            <button onclick="switchTab('config', this)" class="tab-btn active pb-2 text-sm font-medium transition-all">Configuración</button>
-            <button onclick="switchTab('ingreso', this)" class="tab-btn pb-2 text-sm font-medium transition-all">Entradas</button>
-            <button onclick="switchTab('despacho', this)" class="tab-btn pb-2 text-sm font-medium transition-all">Despachos</button>
-            <button onclick="switchTab('traslados', this)" class="tab-btn pb-2 text-sm font-medium transition-all">Traslados</button>
-            <button onclick="switchTab('recepcion', this)" class="tab-btn pb-2 text-sm font-medium transition-all">Recepción</button>
-            <button onclick="switchTab('inventario', this)" class="tab-btn pb-2 text-sm font-medium transition-all">Inventario</button>
+    <section id="ingreso" class="tab-content space-y-6">
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-lg font-semibold text-white">📥 Registrar Entrada</h2>
+          <button onclick="addRow('ingreso-container')" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded-lg text-sm font-bold">+ Agregar Fila</button>
         </div>
-    </nav>
-
-    <main class="max-w-5xl mx-auto p-4 mt-6">
-
-        <!-- PESTAÑA: Configuración -->
-        <section id="config" class="tab-content active space-y-6">
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h2 class="text-lg font-semibold mb-4 text-white">Gestión de Usuarios</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" placeholder="Nuevo Usuario" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full outline-none focus:ring-2 focus:ring-sky-500">
-                    <input type="password" placeholder="Clave" class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
-                    <select class="bg-slate-900 border border-slate-700 p-3 rounded-lg w-full">
-                        <option>Nivel: Administrador</option>
-                        <option>Nivel: Operador</option>
-                    </select>
-                </div>
-                <button class="mt-4 bg-sky-600 hover:bg-sky-500 text-white px-6 py-2 rounded-lg font-medium">Crear Usuario</button>
+        <div id="ingreso-container" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700 relative">
+            <div class="relative">
+              <input id="in-entity" type="text" placeholder="Ente/Donante" class="bg-transparent border-none p-1 w-full focus:outline-none" autocomplete="off">
+              <div id="suggestions-entities" class="suggestions-box"></div>
             </div>
-        </section>
-
-        <!-- PESTAÑA: Entradas -->
-        <section id="ingreso" class="tab-content space-y-6">
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-lg font-semibold text-white">📥 Registrar Entrada</h2>
-                    <button onclick="addRow('ingreso-container')" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded-lg text-sm font-bold">+ Agregar Fila</button>
-                </div>
-                <div id="ingreso-container" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700 relative">
-                        <input type="text" placeholder="Ente/Donante" class="bg-transparent border-none p-1 w-full focus:outline-none">
-                        <input type="date" class="bg-transparent border-none p-1 w-full focus:outline-none">
-                        <input type="text" placeholder="Cód/Barra" class="bg-transparent border-none p-1 w-full focus:outline-none">
-                        <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
-                        <div class="flex items-center gap-2">
-                            <input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none">
-                            <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
-                        </div>
-                    </div>
-                </div>
-                <button class="mt-6 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-medium w-full">Guardar Ingreso Total</button>
+            <input type="date" class="bg-transparent border-none p-1 w-full focus:outline-none">
+            <input id="in-barcode" type="text" placeholder="Cód/Barra" class="bg-transparent border-none p-1 w-full focus:outline-none">
+            <div class="relative">
+              <input id="in-name" type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none" autocomplete="off">
+              <div id="suggestions-items" class="suggestions-box"></div>
             </div>
-        </section>
-
-        <!-- PESTAÑA: Despachos -->
-        <section id="despacho" class="tab-content space-y-6">
-
-        <!-- Dentro de tu tab-despacho -->
-<div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-    <h2 class="text-xl font-bold mb-4">📤 Gestión de Despachos</h2>
-    
-    <!-- Selector de tipo de movimiento -->
-    <label class="block text-sm font-medium text-slate-400 mb-2">Tipo de movimiento</label>
-    <select id="select-tipo-despacho" class="w-full p-3 rounded bg-slate-900 border border-slate-700 mb-4">
-        <option value="despacho">Despacho (Salida final)</option>
-        <option value="traslado">Traslado (Entre centros)</option>
-    </select>
-
-    <!-- El resto de tus inputs de destino, producto, etc. -->
-    <input id="in-destino" placeholder="Destino / Centro" class="w-full p-3 rounded bg-slate-900 border border-slate-700 mb-4">
-    <!-- ... -->
-    <button id="btn-confirmar-despacho" class="w-full bg-sky-600 p-3 rounded font-bold hover:bg-sky-700">
-        Confirmar Movimiento
-    </button>
-</div>
-            
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-lg font-semibold text-white">📤 Registrar Despacho</h2>
-                    <button onclick="addRow('despacho-container')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded-lg text-sm font-bold">+ Agregar Fila</button>
-                </div>
-                <div id="despacho-container" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700 relative">
-                        <input type="text" placeholder="Destino" class="bg-transparent border-none p-1 w-full focus:outline-none">
-                        <input type="text" placeholder="Contacto" class="bg-transparent border-none p-1 w-full focus:outline-none">
-                        <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
-                        <div class="flex items-center gap-2">
-                            <input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none">
-                            <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
-                        </div>
-                    </div>
-                </div>
-                <button class="mt-6 bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-medium w-full">Guardar Despacho Total</button>
+            <div class="flex items-center gap-2">
+              <input id="in-qty" type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none">
+              <select id="in-type" class="bg-transparent border-none p-1 focus:outline-none">
+                <option value="entrada">Entrada</option>
+              </select>
+              <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
             </div>
-        </section>
+          </div>
+        </div>
+        <button id="btn-save" class="mt-6 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-medium w-full">Guardar Ingreso Total</button>
+      </div>
+    </section>
 
-        <!-- PESTAÑA: Traslados -->
-        <section id="traslados" class="tab-content space-y-6">
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h2 class="text-lg font-semibold mb-4 text-white">🚚 Gestión de Traslados</h2>
-                <p class="text-slate-400 text-sm">Administra los traslados de inventario entre sedes o puntos de distribución.</p>
+    <section id="despacho" class="tab-content space-y-6">
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-lg font-semibold text-white">📤 Registrar Despacho</h2>
+          <button onclick="addRow('despacho-container')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded-lg text-sm font-bold">+ Agregar Fila</button>
+        </div>
+        <div id="despacho-container" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700 relative">
+            <input type="text" placeholder="Destino" class="bg-transparent border-none p-1 w-full focus:outline-none">
+            <input type="text" placeholder="Contacto" class="bg-transparent border-none p-1 w-full focus:outline-none">
+            <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
+            <div class="flex items-center gap-2">
+              <input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none">
+              <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
             </div>
-        </section>
+          </div>
+        </div>
+        <button class="mt-6 bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-medium w-full">Guardar Despacho Total</button>
+      </div>
+    </section>
 
-        <!-- PESTAÑA: Recepción -->
-        <section id="recepcion" class="tab-content space-y-6">
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h2 class="text-lg font-semibold mb-4 text-white">📦 Recepción de Traslados</h2>
-                <div class="flex flex-col md:flex-row gap-2">
-                    <input id="in-tracking-code" type="text" placeholder="Ingresa el código de guía (Ej: GUIA-XXXXXX)" class="flex-grow p-3 rounded bg-slate-900 border border-slate-700 text-white outline-none focus:ring-2 focus:ring-sky-500">
-                    <button id="btn-confirmar-recepcion" class="bg-blue-600 px-6 py-3 rounded text-white font-bold hover:bg-blue-700 transition">Confirmar Recepción</button>
-                </div>
-                <div id="recepcion-resultado" class="mt-4 p-4 rounded hidden text-center font-semibold"></div>
+    <section id="traslados" class="tab-content space-y-6">
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+        <h2 class="text-lg font-semibold mb-4 text-white">🚚 Gestión de Traslados</h2>
+        <p class="text-slate-400 text-sm mb-6">Administra los traslados de inventario entre sedes o puntos de distribución. Al confirmar se generará un código de guía para la recepción en el centro destino.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Centro Origen</label>
+            <input id="in-origen-traslado" type="text" placeholder="Ej: Almacén Central" class="w-full p-3 rounded bg-slate-900 border border-slate-700 text-white outline-none focus:ring-2 focus:ring-sky-500">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Centro Destino</label>
+            <input id="in-destino-traslado" type="text" placeholder="Ej: Sede Norte" class="w-full p-3 rounded bg-slate-900 border border-slate-700 text-white outline-none focus:ring-2 focus:ring-sky-500">
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-xs text-slate-400 mb-1">Productos a trasladar</label>
+          <div id="traslados-items" class="space-y-2">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-900 p-3 rounded-lg border border-slate-700">
+              <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
+              <input type="number" placeholder="Cantidad" class="bg-transparent border-none p-1 w-full focus:outline-none">
+              <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
             </div>
-        </section>
+          </div>
+          <button onclick="addRow('traslados-items', true)" class="mt-2 text-sky-400 text-sm hover:text-sky-300">+ Agregar producto</button>
+        </div>
+        <button id="btn-generar-guia" class="mt-4 bg-sky-600 hover:bg-sky-500 text-white px-6 py-3 rounded-lg font-medium w-full">🚚 Generar Guía de Traslado</button>
+        <div id="resultado-guia" class="mt-4 p-4 rounded-lg hidden"></div>
+      </div>
+    </section>
 
-        <!-- PESTAÑA: Inventario -->
-        <section id="inventario" class="tab-content">
-            <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                <div class="p-6 border-b border-slate-700 flex justify-between items-center">
-                    <h2 class="text-lg font-semibold text-white">📊 Inventario Actual</h2>
-                    <button class="text-sm bg-slate-700 hover:bg-slate-600 px-4 py-1 rounded-md transition-all">Exportar Excel</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-slate-900 text-slate-400 uppercase">
-                            <tr>
-                                <th class="px-6 py-3">Producto</th>
-                                <th class="px-6 py-3">Código</th>
-                                <th class="px-6 py-3">Stock</th>
-                                <th class="px-6 py-3">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-700">
-                            <tr>
-                                <td class="px-6 py-4">Juguetes niñas</td>
-                                <td class="px-6 py-4">4242312561</td>
-                                <td class="px-6 py-4 font-bold text-emerald-400">498</td>
-                                <td class="px-6 py-4 text-emerald-400">Disponible</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
+    <section id="recepcion" class="tab-content space-y-6">
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+        <h2 class="text-lg font-semibold mb-4 text-white">📦 Recepción de Traslados</h2>
+        <p class="text-slate-400 text-sm mb-4">Ingresa el código de guía generado en el centro origen para confirmar la recepción en este centro.</p>
+        <div class="flex flex-col md:flex-row gap-2">
+          <input id="in-tracking-code" type="text" placeholder="Ingresa el código de guía (Ej: GUIA-XXXXXX)" class="flex-grow p-3 rounded bg-slate-900 border border-slate-700 text-white outline-none focus:ring-2 focus:ring-sky-500 uppercase">
+          <button id="btn-confirmar-recepcion" class="bg-blue-600 px-6 py-3 rounded text-white font-bold hover:bg-blue-700 transition">Confirmar Recepción</button>
+        </div>
+        <div id="recepcion-resultado" class="mt-4 p-4 rounded hidden text-center font-semibold"></div>
+      </div>
+    </section>
 
-    </main>
+    <section id="inventario" class="tab-content">
+      <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+          <h2 class="text-lg font-semibold text-white">📊 Inventario Actual</h2>
+          <button class="text-sm bg-slate-700 hover:bg-slate-600 px-4 py-1 rounded-md transition-all">Exportar Excel</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-900 text-slate-400 uppercase">
+              <tr>
+                <th class="px-6 py-3">Producto</th>
+                <th class="px-6 py-3">Código</th>
+                <th class="px-6 py-3">Stock</th>
+                <th class="px-6 py-3">Estado</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr>
+                <td class="px-6 py-4">Juguetes niñas</td>
+                <td class="px-6 py-4">4242312561</td>
+                <td class="px-6 py-4 font-bold text-emerald-400">498</td>
+                <td class="px-6 py-4 text-emerald-400">Disponible</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
 
-    <script src="admin_logic.js"></script>
-    <script>
-        function switchTab(tabId, btn) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            btn.classList.add('active');
-        }
+  <script src="admin_logic.js"></script>
+  <script>
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      btn.classList.add('active');
+    }
 
-        function addRow(containerId) {
-            const container = document.getElementById(containerId);
-            const isIngreso = containerId === 'ingreso-container';
-            const html = isIngreso
-                ? `<div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700"><input type="text" placeholder="Ente/Donante" class="bg-transparent border-none p-1 w-full focus:outline-none"><input type="date" class="bg-transparent border-none p-1 w-full focus:outline-none"><input type="text" placeholder="Cód/Barra" class="bg-transparent border-none p-1 w-full focus:outline-none"><input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none"><div class="flex items-center gap-2"><input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none"><button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button></div></div>`
-                : `<div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700"><input type="text" placeholder="Destino" class="bg-transparent border-none p-1 w-full focus:outline-none"><input type="text" placeholder="Contacto" class="bg-transparent border-none p-1 w-full focus:outline-none"><input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none"><div class="flex items-center gap-2"><input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none"><button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button></div></div>`;
-            container.insertAdjacentHTML('beforeend', html);
-        }
+    function addRow(containerId, isTraslado = false) {
+      const container = document.getElementById(containerId);
+      let html;
+      
+      if (containerId === 'ingreso-container') {
+        html = `<div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700 relative">
+          <div class="relative"><input type="text" placeholder="Ente/Donante" class="bg-transparent border-none p-1 w-full focus:outline-none"></div>
+          <input type="date" class="bg-transparent border-none p-1 w-full focus:outline-none">
+          <input type="text" placeholder="Cód/Barra" class="bg-transparent border-none p-1 w-full focus:outline-none">
+          <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
+          <div class="flex items-center gap-2">
+            <input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none">
+            <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
+          </div>
+        </div>`;
+      } else if (isTraslado) {
+        html = `<div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-900 p-3 rounded-lg border border-slate-700">
+          <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
+          <input type="number" placeholder="Cantidad" class="bg-transparent border-none p-1 w-full focus:outline-none">
+          <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
+        </div>`;
+      } else {
+        html = `<div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-center bg-slate-900 p-3 rounded-lg border border-slate-700">
+          <input type="text" placeholder="Destino" class="bg-transparent border-none p-1 w-full focus:outline-none">
+          <input type="text" placeholder="Contacto" class="bg-transparent border-none p-1 w-full focus:outline-none">
+          <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
+          <div class="flex items-center gap-2">
+            <input type="number" placeholder="Cant" class="bg-transparent border-none p-1 w-full focus:outline-none">
+            <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
+          </div>
+        </div>`;
+      }
+      container.insertAdjacentHTML('beforeend', html);
+    }
 
-        function removeRow(btn) {
-            btn.parentElement.parentElement.remove();
-        }
-    </script>
+    function removeRow(btn) {
+      btn.closest('.grid').remove();
+    }
+  </script>
 </body>
 </html>
