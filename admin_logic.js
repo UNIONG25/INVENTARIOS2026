@@ -3,7 +3,7 @@
 // ============================================================
 const sbClient = supabase.createClient(
   'https://ajhubmxofzfdelxbgjjf.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtvwTfEiFK_8qU'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaHVibXhvZnpmZGVseGJnampmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzEwOTIsImV4cCI6MjA5OTAwNzA5Mn0.19vQ77T-kjNIu3-VZYrBT8hOnhiJvYtv[...]
 );
 
 // ============================================================
@@ -75,6 +75,42 @@ async function procesarTraslado() {
     resultDiv.classList.remove('hidden');
     resultDiv.style.backgroundColor = "#854d0e";
     resultDiv.textContent = "Generando guía de traslado...";
+    
+    // Generar código de guía
+    const codigoGuia = generarCodigoGuia();
+    
+    // Preparar datos para enviar a Supabase
+    const trasladoData = {
+      guia_code: codigoGuia,
+      origen: origen,
+      destino: destino,
+      items: items,
+      fecha: new Date().toISOString().split('T')[0],
+      estado: 'pendiente'
+    };
+    
+    // Opcional: Enviar a Supabase si tienes una tabla para traslados
+    // const { error } = await sbClient.from('traslados').insert([trasladoData]);
+    // if (error) throw error;
+    
+    // Mostrar resultado exitoso
+    resultDiv.style.backgroundColor = "#166534"; // Verde
+    resultDiv.innerHTML = `
+      ✅ <strong>Guía generada exitosamente</strong><br>
+      Código: <strong>${codigoGuia}</strong><br>
+      Origen: ${origen}<br>
+      Destino: ${destino}<br>
+      Productos: ${items.length}
+    `;
+    
+    // Limpiar campos después de 3 segundos
+    setTimeout(() => {
+      document.getElementById('in-origen-traslado').value = '';
+      document.getElementById('in-destino-traslado').value = '';
+      itemsContainer.innerHTML = '';
+      resultDiv.classList.add('hidden');
+    }, 3000);
+    
   } catch (error) {
     resultDiv.style.backgroundColor = "#991b1b";
     resultDiv.textContent = "❌ Error al generar la guía: " + error.message;
