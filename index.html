@@ -126,7 +126,7 @@
     <section id="traslados" class="tab-content space-y-6">
       <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
         <h2 class="text-lg font-semibold mb-4 text-white">🚚 Gestión de Traslados</h2>
-        <p class="text-slate-400 text-sm mb-6">Administra los traslados de inventario entre sedes o puntos de distribución. Al confirmar se generará un código de guía para la recepción en el centro destino.</p>
+        <p class="text-slate-400 text-sm mb-6">Administra los traslados de inventario entre sedes o puntos de distribución. Al confirmar se generará un código de guía para la recepción en el[...]</p>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
@@ -142,7 +142,7 @@
         <div class="mb-4">
           <label class="block text-xs text-slate-400 mb-1">Productos a trasladar</label>
           <div id="traslados-items" class="space-y-2">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-900 p-3 rounded-lg border border-slate-700">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-900 p-3 rounded-lg border border-slate-700 traslado-item-row">
               <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
               <input type="number" placeholder="Cantidad" class="bg-transparent border-none p-1 w-full focus:outline-none">
               <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
@@ -160,7 +160,7 @@
         <h2 class="text-lg font-semibold mb-4 text-white">📦 Recepción de Traslados</h2>
         <p class="text-slate-400 text-sm mb-4">Ingresa el código de guía generado en el centro origen para confirmar la recepción en este centro.</p>
         <div class="flex flex-col md:flex-row gap-2">
-          <input id="in-tracking-code" type="text" placeholder="Ingresa el código de guía (Ej: GUIA-XXXXXX)" class="flex-grow p-3 rounded bg-slate-900 border border-slate-700 text-white outline-none focus:ring-2 focus:ring-sky-500 uppercase">
+          <input id="in-tracking-code" type="text" placeholder="Ingresa el código de guía (Ej: GUIA-XXXXXX)" class="flex-grow p-3 rounded bg-slate-900 border border-slate-700 text-white outline-none">
           <button id="btn-confirmar-recepcion" class="bg-blue-600 px-6 py-3 rounded text-white font-bold hover:bg-blue-700 transition">Confirmar Recepción</button>
         </div>
         <div id="recepcion-resultado" class="mt-4 p-4 rounded hidden text-center font-semibold"></div>
@@ -197,6 +197,15 @@
     </section>
   </main>
 
+  <!-- Configuración de entorno en cliente: durante desarrollo puedes colocar aquí tus claves (NO en producción) -->
+  <script>
+    // Opcional: en desarrollo puedes inyectar aquí tus claves de Supabase para que admin_logic.js las lea.
+    window.__ENV = window.__ENV || {};
+    // Ejemplo (descomenta y reemplaza):
+    // window.__ENV.VITE_SUPABASE_URL = 'https://xyz.supabase.co';
+    // window.__ENV.VITE_SUPABASE_ANON_KEY = 'public-anon-key';
+  </script>
+
   <script src="admin_logic.js"></script>
   <script>
     function switchTab(tabId, btn) {
@@ -222,7 +231,7 @@
           </div>
         </div>`;
       } else if (isTraslado) {
-        html = `<div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-900 p-3 rounded-lg border border-slate-700">
+        html = `<div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-900 p-3 rounded-lg border border-slate-700 traslado-item-row">
           <input type="text" placeholder="Producto" class="bg-transparent border-none p-1 w-full focus:outline-none">
           <input type="number" placeholder="Cantidad" class="bg-transparent border-none p-1 w-full focus:outline-none">
           <button onclick="removeRow(this)" class="text-red-400 hover:text-red-300">✕</button>
