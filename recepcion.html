@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+    <title>Recepción de Traslados - Logística de Emergencia</title>
+    <link rel="stylesheet" href="css/estilos.css">
+    <script src="js/libs/supabase-js.js"></script>
+</head>
+<body>
+
+    <nav class="navbar">
+        <a href="dashboard.html" class="navbar-marca">🛡️ LogísticaDesastres</a>
+        <ul class="navbar-menu">
+            <li><a href="dashboard.html" class="navbar-link">Panel General</a></li>
+            <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
+            <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
+            <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
+	    <li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
+        </ul>
+    </nav>
+
+    <div class="contenedor">
+        <header style="margin-bottom: 20px;">
+            <h1>Confirmación de Recepción</h1>
+            <p>Valida y descarga los camiones que llegan desde otros centros de acopio.</p>
+        </header>
+
+        <div class="tarjeta">
+            <h2>1. Seleccionar Camión en Espera</h2>
+            <label for="select-traslado-pendiente">Cargas en ruta hacia tus almacenes:</label>
+            <select id="select-traslado-pendiente">
+                <option value="">Seleccione un camión por placa o chofer...</option>
+                </select>
+            <button id="btn-cargar-manifiesto" style="margin-top: 10px; background-color: var(--color-principal);">
+                🔍 Cargar Manifiesto del Camión
+            </button>
+        </div>
+
+        <div id="seccion-verificacion" class="tarjeta" style="display: none;">
+            <h2>2. Verificar Suministros Físicos</h2>
+            <p style="margin-bottom: 15px; color: #64748b;">Confirme si la cantidad que llegó coincide con lo despachado en el origen.</p>
+            
+            <table class="tabla-logistica">
+                <thead>
+                    <tr>
+                        <th>Insumo</th>
+                        <th>Cant. Despachada</th>
+                        <th>Cant. Real Recibida</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-recepcion-cuerpo">
+                    </tbody>
+            </table>
+
+            <button id="btn-consolidar-recepcion" style="margin-top: 25px; width: 100%; background-color: var(--color-exito); font-size: 1.1rem;">
+                ✓ Confirmar Entrada e Incrementar Stock Destino
+            </button>
+        </div>
+    </div>
+
+    <script src="js/supabase_config.js"></script>
+    <script>
+// Verificar si hay sesión activa
+const sesionRol = sessionStorage.getItem('usuario_rol');
+const sesionCentroId = sessionStorage.getItem('usuario_centro_id');
+
+if (!sesionRol) {
+    alert("Acceso denegado. Por favor inicie sesión.");
+    location.href = 'index.html';
+}
+
+// Lógica de restricción visual para selects o filtros
+function aplicarRestriccionPorCentro(selectElementId) {
+    const selector = document.getElementById(selectElementId);
+    if (!selector) return;
+
+    if (sesionRol === 'operador') {
+        // Si es operador, forzar a que el select use únicamente su centro asignado
+        selector.value = sesionCentroId;
+        selector.disabled = true; // Deshabilitar para que no pueda cambiar de almacén
+    }
+}
+        let trasladoSeleccionadoId = null;
+        let detallesCargaActual = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!window.supabaseClient) return alert("Supabase no conectado.");
+            await cargarTrasladosEnTransito();
+        });
+
+        // Buscar todos los camiones cuyo estado sea 'EN_TRANSITO'
+        async function cargarTrasladosEnTransito() {
+    const supabase = window.supabaseClient;
+    const cuerpoTabla = document.getElementById('tabla-transito-cuerpo'); // Revisa el ID de tu tabla si es necesario
+    
+    if (!cuerpoTabla) return;
+
+    // CONSULTA CORREGIDA: Apunta a 'traslados', 'estado' y 'chofer_datos'
+    const { data: transitos, error } = await supabase
+        .from('traslados')
+        .select(`
+            id,
+            vehiculo_placa,
+            chofer_datos,
+            centro_origen:centros_acopio!centro_origen_id(nombre),
+            centro_destino:centros_acopio!centro_destino_id(nombre)
+        `)
+        .eq('estado', 'EN_TRANSITO'); // Cambiado a tu columna 'estado'
+
+    if (error) {
+        console.error("Error cargando tránsitos:", error.message);
+        cuerpoTabla.innerHTML = `<tr><td colspan="5" style="color:red;">Error al mapear la ruta de camiones.</td></tr>`;
+        return;
+    }
+
+    cuerpoTabla.innerHTML = "";
+    if (!transitos || transitos.length === 0) {
+        cuerpoTabla.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">No hay camiones en ruta hacia ningún nodo en este momento.</td></tr>`;
+        return;
+    }
+
+    // Dibujar las filas con tus datos reales
+    transitos.forEach(t => {
+        cuerpoTabla.innerHTML += `
+            <tr>
+                <td>#TR-${t.id}</td>
+                <td>${t.centro_origen?.nombre || 'Origen'} ➡️ ${t.centro_destino?.nombre || 'Destino'}</td>
+                <td><strong>${t.chofer_datos}</strong></td>
+                <td><span class="badge badge-patrulla">${t.vehiculo_placa}</span></td>
+                <td>
+                    <button class="btn btn-verde" onclick="abrirModalRecepcion(${t.id})">
+                        📥 Recibir Carga
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+}
+        // Al presionar "Cargar Manifiesto"
+        document.getElementById('btn-cargar-manifiesto').addEventListener('click', async () => {
+            const id = document.getElementById('select-traslado-pendiente').value;
+            if (!id) return alert("Seleccione un traslado de la lista.");
+
+            trasladoSeleccionadoId = parseInt(id);
+
+            // Traer el desglose de productos que van arriba de ese camión
+            const { data: detalles, error } = await window.supabaseClient
+                .from('detalle_traslado_centros')
+                .select(`
+                    id,
+                    producto_id,
+                    cantidad_despachada,
+                    productos_maestro(nombre_producto)
+                `)
+                .eq('traslado_id', trasladoSeleccionadoId);
+
+            if (error) return alert("Error al cargar detalles de la carga.");
+            
+            detallesCargaActual = detalles;
+
+            // Renderizar la tabla para que el usuario verifique cantidades
+            const cuerpo = document.getElementById('tabla-recepcion-cuerpo');
+            cuerpo.innerHTML = '';
+            
+            detalles.forEach((item, index) => {
+                cuerpo.innerHTML += `
+                    <tr>
+                        <td><strong>${item.productos_maestro?.nombre_producto}</strong></td>
+                        <td>${item.cantidad_despachada} unidades</td>
+                        <td>
+                            <input type="number" id="input-recibido-${index}" value="${item.cantidad_despachada}" min="0" style="margin: 0; width: 120px;">
+                        </td>
+                    </tr>`;
+            });
+
+            document.getElementById('seccion-verificacion').style.display = 'block';
+        });
+
+        // Botón final: Descarga el camión, computa mermas y suma stock al destino
+        document.getElementById('btn-consolidar-recepcion').addEventListener('click', async () => {
+            const supabase = window.supabaseClient;
+
+            // 1. Obtener los datos base del traslado (necesitamos saber cuál era el centro destino)
+            const { data: traslado } = await supabase
+                .from('traslados_entre_centros')
+                .select('centro_destino_id')
+                .eq('id', trasladoSeleccionadoId)
+                .single();
+
+            let totalMermas = 0;
+
+            // 2. Procesar fila por fila lo recibido
+            for (let i = 0; i < detallesCargaActual.length; i++) {
+                const item = detallesCargaActual[i];
+                const cantRecibida = parseInt(document.getElementById(`input-recibido-${i}`).value) || 0;
+
+                if (cantRecibida < item.cantidad_despachada) {
+                    totalMermas += (item.cantidad_despachada - cantRecibida);
+                }
+
+                // Actualizar la tabla relacional con lo que llegó de verdad (Auditoría)
+                await supabase
+                    .from('detalle_traslado_centros')
+                    .update({ cantidad_recibida: cantRecibida })
+                    .eq('id', item.id);
+
+                // Sumar al inventario físico real del centro de acopio destino
+                await supabase.rpc('ingresar_o_sumar_stock', {
+                    p_centro_id: parseInt(traslado.centro_destino_id),
+                    p_producto_id: parseInt(item.producto_id),
+                    p_amount: cantRecibida // Asegúrate que tu RPC use: p_cantidad
+                });
+            }
+
+            // 3. Cambiar el estado del camión a cerrado
+            const estadoFinal = totalMermas > 0 ? 'RECIBIDO_CON_MERMA' : 'RECIBIDO_COMPLETO';
+            await supabase
+                .from('traslados_entre_centros')
+                .update({
+                    estado_traslado: estadoFinal,
+                    fecha_recepcion: new Date().toISOString()
+                })
+                .eq('id', trasladoSeleccionadoId);
+
+            alert(`✓ Camión procesado. Estado: ${estadoFinal}. El inventario del destino ha sido cargado.`);
+            location.reload();
+        });
+    </script>
+</body>
+</html>

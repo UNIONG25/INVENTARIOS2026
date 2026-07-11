@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <title>Acceso - Sistema de Contingencia Logística</title>
+    <link rel="stylesheet" href="css/estilos.css">
+    
+    <script src="js/libs/supabase-js.js"></script>
+    <script src="js/supabase_config.js"></script>
+</head>
+<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #0f172a; padding: 20px;">
+
+    <div class="tarjeta" style="width: 100%; max-width: 400px; padding: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);">
+        <div style="text-align: center; margin-bottom: 25px;">
+            <span style="font-size: 3rem;">🛡️</span>
+            <h2 style="margin-top: 10px; color: var(--text-color);">Control Logístico</h2>
+            <p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Plataforma de Inventarios y Emergencias</p>
+        </div>
+
+        <form id="form-login">
+            <div style="margin-bottom: 15px;">
+                <label for="txt-usuario" style="font-weight: 600; display: block; margin-bottom: 5px;">Usuario / Indicativo:</label>
+                <input type="text" id="txt-usuario" required placeholder="Ej. admin u operador1" style="margin: 0;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label for="txt-clave" style="font-weight: 600; display: block; margin-bottom: 5px;">Contraseña de Seguridad:</label>
+                <input type="password" id="txt-clave" required placeholder="••••••••" style="margin: 0;">
+            </div>
+
+            <button type="submit" style="width: 100%; padding: 12px; background-color: var(--color-principal); font-size: 1rem;">
+                Entrar al Sistema
+            </button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('form-login').addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+
+            const supabase = window.supabaseClient;
+            
+            if (!supabase) {
+                alert("❌ Error: No se pudo establecer comunicación con el nodo central.");
+                return;
+            }
+            
+            // Forzamos la limpieza de espacios al principio y al final de ambos campos
+            const user = document.getElementById('txt-usuario').value.trim();
+            const pass = document.getElementById('txt-clave').value.trim();
+
+            try {
+                // Hacemos la consulta aplicando filtros estrictos
+                const { data: usuario, error } = await supabase
+                    .from('usuarios_sistema')
+                    .select('username, rol, centro_asignado_id, nombre_completo, password_text')
+                    .eq('username', user)
+                    .maybeSingle(); 
+
+                if (error) {
+                    alert("Error en la Base de Datos: " + error.message);
+                    return;
+                }
+
+                // Hacemos la validación manual del password en el cliente para evitar problemas de cotejo en Postgres
+                if (!usuario || usuario.password_text.trim() !== pass) {
+                    alert("❌ Acceso denegado: Usuario o contraseña incorrectos.");
+                } else {
+                    // Guardamos la sesión activa
+                    sessionStorage.setItem('usuario_nombre', usuario.nombre_completo);
+                    sessionStorage.setItem('usuario_rol', usuario.rol);
+                    sessionStorage.setItem('usuario_centro_id', usuario.centro_asignado_id || 'todos');
+
+                    alert(`✓ Conexión exitosa. Bienvenido/a: ${usuario.nombre_completo}`);
+                    location.href = 'dashboard.html';
+                }
+
+            } catch (err) {
+                console.error("Excepción atrapada en el login:", err);
+                alert("Ocurrió un error inesperado al procesar el ingreso.");
+            }
+        });
+    </script>
+</body>
+</html>

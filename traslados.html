@@ -2,12 +2,12 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
     <title>Traslado entre Centros - Logística de Emergencia</title>
     <link rel="stylesheet" href="css/estilos.css">
 
     <script src="js/libs/supabase-js.js"></script>
-    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase_config.js"></script>
     <script src="js/libs/html5-qrcode.min.js"></script>
     <script src="js/modulos/donaciones.js"></script>
 </head>
@@ -19,6 +19,7 @@
         <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
         <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
         <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
+	<li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
     </ul>
 </nav>
 
@@ -90,6 +91,26 @@
 
     
     <script>
+// Verificar si hay sesión activa
+const sesionRol = sessionStorage.getItem('usuario_rol');
+const sesionCentroId = sessionStorage.getItem('usuario_centro_id');
+
+if (!sesionRol) {
+    alert("Acceso denegado. Por favor inicie sesión.");
+    location.href = 'index.html';
+}
+
+// Lógica de restricción visual para selects o filtros
+function aplicarRestriccionPorCentro(selectElementId) {
+    const selector = document.getElementById(selectElementId);
+    if (!selector) return;
+
+    if (sesionRol === 'operador') {
+        // Si es operador, forzar a que el select use únicamente su centro asignado
+        selector.value = sesionCentroId;
+        selector.disabled = true; // Deshabilitar para que no pueda cambiar de almacén
+    }
+}
         let itemsCarga = [];
 
         document.addEventListener('DOMContentLoaded', async () => {

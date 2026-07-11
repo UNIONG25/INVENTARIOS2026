@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline';">
     <title>Panel de Control - Logística de Emergencia</title>
     <link rel="stylesheet" href="css/estilos.css">
     
     <script src="js/libs/supabase-js.js"></script>
     <script src="js/libs/chart.min.js"></script>
-    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase_config.js"></script>
     <script src="js/modulos/estadisticas.js"></script>
 </head>
 <body>
@@ -19,6 +19,7 @@
         <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
         <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
         <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
+        <li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
     </ul>
 </nav>
 
@@ -28,10 +29,26 @@
                 <h1>Panel de Logística Humanitaria</h1>
                 <p>Monitoreo de Centros de Acopio y Refugios en Tiempo Real</p>
             </div>
-            <select id="filtro-centro" style="width: auto; margin: 0;">
-                <option value="todos">Todos los Centros</option>
-            </select>
         </header>
+
+        <div id="seccion-filtros-admin" class="tarjeta" style="background: #1e293b; padding: 15px; margin-bottom: 25px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <h4 style="margin: 0; color: #3b82f6;">🔍 Reportes Dinámicos:</h4>
+            <div>
+                <label style="font-size: 0.8rem; display:block; color:#94a3b8;">Centro de Acopio:</label>
+                <select id="filtro-centro" style="padding: 6px; background:#334155; color:#fff; border:none; border-radius:4px; margin:0; width:auto;">
+                    <option value="todos">Todos los Centros</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 0.8rem; display:block; color:#94a3b8;">Desde:</label>
+                <input type="date" id="filtro-desde" style="padding: 6px; background:#334155; color:#fff; border:none; border-radius:4px;">
+            </div>
+            <div>
+                <label style="font-size: 0.8rem; display:block; color:#94a3b8;">Hasta:</label>
+                <input type="date" id="filtro-hasta" style="padding: 6px; background:#334155; color:#fff; border:none; border-radius:4px;">
+            </div>
+            <button id="btn-aplicar-filtros" class="btn btn-azul" style="padding: 8px 15px; margin-top: 0; height: 34px;">Filtrar Estadísticas</button>
+        </div>
 
         <div class="grid-2" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 25px;">
             <div class="tarjeta" style="border-left: 5px solid var(--color-principal);">
@@ -52,14 +69,14 @@
             <div class="tarjeta">
                 <h3>Suministros Disponibles por Categoría</h3>
                 <div style="position: relative; height:300px;">
-                    <canvas id="graficoCategorias"></canvas>
+                    <canvas id="grafico-categorias"></canvas>
                 </div>
             </div>
 
             <div class="tarjeta">
                 <h3>Auditoría de Traslados (Mermas Detectadas)</h3>
                 <div style="position: relative; height:300px;">
-                    <canvas id="graficoMermas"></canvas>
+                    <canvas id="grafico-mermas"></canvas>
                 </div>
             </div>
         </div>
@@ -72,17 +89,66 @@
                         <th>ID</th>
                         <th>Origen</th>
                         <th>Destino</th>
+                        <th>Transportista / Chofer</th>
                         <th>Vehículo / Placa</th>
-                        <th>Transportista</th>
                         <th>Estado</th>
                     </tr>
                 </thead>
-                <tbody id="tabla-traslados-cuerpo">
-                    </tbody>
+                <tbody id="tabla-traslados-cuerpo"></tbody>
             </table>
         </div>
+
+        <div id="panel-crud-admin" style="display: none; margin-top: 40px; border-top: 2px dashed #334155; padding-top: 30px;">
+            <h2 style="color: #f59e0b;">⚙️ Gestión de Credenciales y Nodos Operativos</h2>
+            <p style="color: #94a3b8; margin-bottom: 25px;">Sección exclusiva para administradores del sistema central.</p>
+
+            <div class="grid-2">
+                <div class="tarjeta" style="background: #1e293b;">
+                    <h3 style="color: #fff; margin-bottom: 15px;">👥 Registrar / Modificar Operador</h3>
+                    <form id="form-usuario-admin" style="display: flex; flex-direction: column; gap: 12px;">
+                        <input type="hidden" id="crud-user-id">
+                        <input type="text" id="crud-username" placeholder="Usuario de Acceso" required style="padding: 10px; background:#334155; color:#fff; border:none; border-radius:4px;">
+                        <input type="text" id="crud-password" placeholder="Contraseña de Ingreso" required style="padding: 10px; background:#334155; color:#fff; border:none; border-radius:4px;">
+                        <input type="text" id="crud-nombre" placeholder="Nombre Completo del Operador" required style="padding: 10px; background:#334155; color:#fff; border:none; border-radius:4px;">
+                        <select id="crud-rol" style="padding: 10px; background:#334155; color:#fff; border:none; border-radius:4px;">
+                            <option value="operador">Operador de Nodo</option>
+                            <option value="admin">Administrador Central</option>
+                        </select>
+                        <select id="crud-centro-asignado" style="padding: 10px; background:#334155; color:#fff; border:none; border-radius:4px;">
+                            <option value="">Acceso Global (Todos los Centros)</option>
+                        </select>
+                        <button type="submit" class="btn btn-verde" style="margin-top: 5px;">Guardar Operador</button>
+                        <button type="button" id="btn-cancelar-edicion" class="btn btn-rojo" style="display: none;">Cancelar Modificación</button>
+                    </form>
+                </div>
+
+                <div class="tarjeta" style="background: #1e293b;">
+                    <h3 style="color: #fff; margin-bottom: 15px;">🏢 Agregar Nuevo Centro de Acopio</h3>
+                    <form id="form-centro-admin" style="display: flex; flex-direction: column; gap: 12px;">
+                        <input type="text" id="crud-centro-nombre" placeholder="Nombre Oficial del Centro" required style="padding: 10px; background:#334155; color:#fff; border:none; border-radius:4px;">
+                        <input type="text" id="crud-centro-ubicacion" placeholder="Ubicación Física / Eje Geográfico" required style="padding: 10px; background:#334155; color:#fff; border:none; border-radius:4px;">
+                        <button type="submit" class="btn btn-azul" style="margin-top: 48px;">Dar de Alta Centro</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="tarjeta" style="margin-top: 25px; background: #1e293b;">
+                <h3>Matrícula de Usuarios y Claves Activas</h3>
+                <table class="tabla-logistica">
+                    <thead>
+                        <tr style="background: #334155;">
+                            <th>Usuario</th>
+                            <th>Nombre Completo</th>
+                            <th>Rol</th>
+                            <th>Centro Asignado</th>
+                            <th>Clave en Texto Plano</th>
+                            <th>Acciones de Control</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-usuarios-admin-cuerpo"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
-
-
 </body>
 </html>

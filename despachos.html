@@ -2,12 +2,12 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
     <title>Salidas a Refugios - Logística de Emergencia</title>
     <link rel="stylesheet" href="css/estilos.css">
     
     <script src="js/libs/supabase-js.js"></script>
-    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase_config.js"></script>
     <script src="js/libs/html5-qrcode.min.js"></script>
     <script src="js/modulos/donaciones.js"></script>
 </head>
@@ -19,6 +19,7 @@
         <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
         <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
         <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
+	<li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
     </ul>
 </nav>
 
@@ -88,8 +89,28 @@
         </div>
     </div>
 
-    <script src="js/supabase-config.js"></script>
+    
     <script>
+// Verificar si hay sesión activa
+const sesionRol = sessionStorage.getItem('usuario_rol');
+const sesionCentroId = sessionStorage.getItem('usuario_centro_id');
+
+if (!sesionRol) {
+    alert("Acceso denegado. Por favor inicie sesión.");
+    location.href = 'index.html';
+}
+
+// Lógica de restricción visual para selects o filtros
+function aplicarRestriccionPorCentro(selectElementId) {
+    const selector = document.getElementById(selectElementId);
+    if (!selector) return;
+
+    if (sesionRol === 'operador') {
+        // Si es operador, forzar a que el select use únicamente su centro asignado
+        selector.value = sesionCentroId;
+        selector.disabled = true; // Deshabilitar para que no pueda cambiar de almacén
+    }
+}
         let itemsDespacho = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -99,19 +120,39 @@
         });
 
         async function cargarDatosIniciales() {
-            const supabase = window.supabaseClient;
-            
-            // Cargar centros de acopio
-            const { data: centros } = await supabase.from('centros_acopio').select('id, nombre');
-            const selectorCentro = document.getElementById('centro-origen-despacho');
-            centros.forEach(c => selectorCentro.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+    const supabase = window.supabaseClient;
 
-            // Cargar refugios
-            const { data: refugios } = await supabase.from('refugios').select('id, nombre');
-            const selectorRefugio = document.getElementById('refugio-destino');
-            refugios.forEach(r => selectorRefugio.innerHTML += `<option value="${r.id}">${r.nombre}</option>`);
-        }
+    // 1. Cargamos los centros de acopio de origen
+    const { data: centrosOrigen } = await supabase
+        .from('centros_acopio')
+        .select('id, nombre');
 
+    const selectorOrigen = document.getElementById('centro-origen'); // Revisa el ID de tu HTML
+    if (selectorOrigen && centrosOrigen) {
+        selectorOrigen.innerHTML = '<option value="">Seleccione Origen...</option>';
+        centrosOrigen.forEach(c => {
+            selectorOrigen.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+        });
+    }
+
+    // 2. CORREGIDO: Usamos 'centros_acopio' en lugar de 'refugios' para el destino
+    const { data: centrosDestino, error } = await supabase
+        .from('centros_acopio')
+        .select('id, nombre');
+
+    if (error) {
+        console.error("Error al cargar destinos:", error.message);
+        return;
+    }
+
+    const selectorDestino = document.getElementById('centro-destino'); // o el ID que uses para el destino
+    if (selectorDestino && centrosDestino) {
+        selectorDestino.innerHTML = '<option value="">Seleccione Destino...</option>';
+        centrosDestino.forEach(c => {
+            selectorDestino.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+        });
+    }
+}
         function inicializarEscaner() {
             const scanner = new Html5QrcodeScanner("lector-camara", { fps: 15, qrbox: { width: 250, height: 150 } });
             scanner.render(async (codigo) => {

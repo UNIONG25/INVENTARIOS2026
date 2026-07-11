@@ -2,16 +2,32 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
     <title>Registro de Donaciones - Logística de Emergencia</title>
     <link rel="stylesheet" href="css/estilos.css">
     
     <script src="js/libs/supabase-js.js"></script>
-    <script src="js/supabase-config.js"></script>
     <script src="js/libs/html5-qrcode.min.js"></script>
-    <script src="js/modulos/donaciones.js"></script>
+
+    <style>
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 100; 
+            left: 0; top: 0; width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.5);
+            align-items: center; justify-content: center;
+        }
+        .modal-contenido {
+            background-color: white; 
+            padding: 25px; 
+            border-radius: 8px; 
+            max-width: 500px; width: 90%;
+        }
+    </style>
 </head>
 <body>
+
 <nav class="navbar">
     <a href="dashboard.html" class="navbar-marca">🛡️ LogísticaDesastres</a>
     <ul class="navbar-menu">
@@ -19,6 +35,7 @@
         <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
         <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
         <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
+	<li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
     </ul>
 </nav>
 
@@ -35,7 +52,7 @@
                     <label for="centro-receptor">Centro de Acopio que Recibe la Ayuda:</label>
                     <select id="centro-receptor">
                         <option value="">Seleccione un Centro...</option>
-                        </select>
+                    </select>
                 </div>
                 <div>
                     <label for="donante-nombre">Nombre o Razón Social del Donante (Opcional):</label>
@@ -61,11 +78,14 @@
 
         <div class="grid-2">
             <div class="tarjeta">
-                <h2>2. Escanear Código de Barras</h2>
-                <p style="margin-bottom: 10px; color: #64748b;">Apunta el código de barras del producto hacia la cámara.</p>
+                <h2>2. Captura de Productos</h2>
+                <p style="margin-bottom: 10px; color: #64748b;">Usa la cámara o ingresa un producto manualmente si no tiene código.</p>
                 
+                <button id="btn-manual-abrir" type="button" style="background-color: var(--color-principal); width: 100%; margin-bottom: 15px;">
+                    ➕ Registrar / Buscar Producto Manualmente
+                </button>
+
                 <div id="lector-camara" style="width: 100%; border-radius: 8px; overflow: hidden; background: #000;"></div>
-                
                 <p style="margin-top: 10px;">Último código detectado: <strong id="codigo-detectado" style="color: var(--color-principal);">Ninguno</strong></p>
             </div>
 
@@ -90,37 +110,71 @@
         </div>
     </div>
 
-   
+    <div id="modal-producto" class="modal">
+        <div class="modal-contenido">
+            <h3 style="margin-bottom: 15px;">Formulario de Producto</h3>
+            
+            <label for="modal-codigo">Código de Barras (Opcional si es manual):</label>
+            <input type="text" id="modal-codigo" placeholder="Ej. 75010... o dejar vacío para autogenerar">
+
+            <label for="modal-nombre">Nombre Completo del Producto:</label>
+            <input type="text" id="modal-nombre" placeholder="Ej. Harina de Maíz 1kg">
+
+            <label for="modal-categoria">Categoría:</label>
+            <select id="modal-categoria">
+                <option value="Alimentos">Alimentos No Perecederos</option>
+                <option value="Agua">Agua / Hidratación</option>
+                <option value="Medicamentos">Medicamentos / Primeros Auxilios</option>
+                <option value="Higiene">Higiene Personal</option>
+                <option value="Ropa">Ropa y Mantas</option>
+            </select>
+
+            <label for="modal-cantidad">Cantidad que Ingresa:</label>
+            <input type="number" id="modal-cantidad" value="1" min="1">
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button id="btn-modal-guardar" style="background-color: var(--color-exito); flex: 1;">Agregar a la Lista</button>
+                <button id="btn-modal-cancelar" style="background-color: var(--color-peligro); flex: 1;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/supabase_config.js"></script>
 
     <script>
-        let productosDonados = []; // Guarda temporalmente lo escaneado antes de subirlo
+// Verificar si hay sesión activa
+const sesionRol = sessionStorage.getItem('usuario_rol');
+const sesionCentroId = sessionStorage.getItem('usuario_centro_id');
+
+if (!sesionRol) {
+    alert("Acceso denegado. Por favor inicie sesión.");
+    location.href = 'index.html';
+}
+
+// Lógica de restricción visual para selects o filtros
+function aplicarRestriccionPorCentro(selectElementId) {
+    const selector = document.getElementById(selectElementId);
+    if (!selector) return;
+
+    if (sesionRol === 'operador') {
+        // Si es operador, forzar a que el select use únicamente su centro asignado
+        selector.value = sesionCentroId;
+        selector.disabled = true; // Deshabilitar para que no pueda cambiar de almacén
+    }
+}
+        let productosDonados = []; 
 
         document.addEventListener('DOMContentLoaded', async () => {
-            if (!window.supabaseClient) {
-                alert("Error: El cliente de Supabase no está configurado correctamente.");
-                return;
-            }
-            
-            // 1. Cargar Centros de Acopio en el menú desplegable
+            if (!window.supabaseClient) return alert("Error: Supabase no configurado.");
             await cargarCentrosReceptores();
-
-            // 2. Encender el escáner de la cámara
             inicializarEscaner();
+            configurarEventosModal();
         });
 
-        // Conecta con Supabase y trae la lista de centros abiertos
         async function cargarCentrosReceptores() {
-            const { data: centros, error } = await window.supabaseClient
-                .from('centros_acopio')
-                .select('id, nombre');
-            
-            if (error) {
-                console.error("Error al cargar los centros:", error);
-                return;
-            }
-
+            const { data: centros } = await window.supabaseClient.from('centros_acopio').select('id, nombre');
             const selector = document.getElementById('centro-receptor');
-            centros.forEach(c => {
+            centros?.forEach(c => {
                 const opcion = document.createElement('option');
                 opcion.value = c.id;
                 opcion.textContent = c.nombre;
@@ -128,51 +182,90 @@
             });
         }
 
-        // Configura y activa la cámara del dispositivo
         function inicializarEscaner() {
-            const html5QrcodeScanner = new Html5QrcodeScanner(
-                "lector-camara", 
-                { fps: 15, qrbox: { width: 250, height: 150 } } // Optimizado para códigos de barra horizontales
-            );
+            const html5QrcodeScanner = new Html5QrcodeScanner("lector-camara", { fps: 15, qrbox: { width: 250, height: 150 } });
             html5QrcodeScanner.render(onScanSuccess);
         }
 
-        // Se ejecuta automáticamente al detectar un código de barras
+        // Al escanear con la cámara
         async function onScanSuccess(decodedText) {
             document.getElementById('codigo-detectado').textContent = decodedText;
             
-            // Buscar el código escaneado en el catálogo maestro
+            // CORREGIDO: .maybeSingle() para evitar que el 406 ensucie la consola si el código no existe
             const { data: producto, error } = await window.supabaseClient
                 .from('productos_maestro')
                 .select('*')
                 .eq('codigo_barras', decodedText)
-                .single();
+                .maybeSingle();
 
-            if (error && error.code === 'PGRST116') {
-                // El código no está en la base de datos (Producto Nuevo)
-                let nombre = prompt("¡Código NUEVO detectado! Ingrese el nombre del producto:");
-                let categoria = prompt("Ingrese la categoría (Alimentos, Medicamentos, Agua, Higiene, Ropa):");
-                
-                if (nombre && categoria) {
-                    const { data: nuevoProd, error: errIns } = await window.supabaseClient
-                        .from('productos_maestro')
-                        .insert([{ codigo_barras: decodedText, nombre_producto: nombre, categoria: categoria }])
-                        .select()
-                        .single();
-                    
-                    if (!errIns) procesarCantidadInsumo(nuevoProd);
-                }
-            } else if (producto) {
-                // Producto existente
-                procesarCantidadInsumo(producto);
+            if (error) {
+                console.error("Error al buscar producto:", error);
+                return;
+            }
+
+            if (!producto) {
+                // Si no existe, abre el modal con el código ya pre-llenado para que no trabajes doble
+                abrirModalProducto(decodedText);
+            } else {
+                // Si existe, pide cantidad rápido e inserta
+                let cantidad = parseInt(prompt(`¿Cuántas unidades de "${producto.nombre_producto}" ingresan?`, "1")) || 1;
+                agregarAFormularioTemporal(producto, cantidad);
             }
         }
 
-        // Solicita la cantidad ingresada y la lista en pantalla
-        function procesarCantidadInsumo(producto) {
-            let cantidad = parseInt(prompt(`¿Cuántas unidades ingresan de "${producto.nombre_producto}"?`, "1")) || 1;
+        // Control del Modal Flotante
+        function configurarEventosModal() {
+            document.getElementById('btn-manual-abrir').addEventListener('click', () => abrirModalProducto(''));
+            document.getElementById('btn-modal-cancelar').addEventListener('click', cerrarModalProducto);
+            document.getElementById('btn-modal-guardar').addEventListener('click', procesarGuardadoModal);
+        }
+
+        function abrirModalProducto(codigo = '') {
+            document.getElementById('modal-codigo').value = codigo;
+            document.getElementById('modal-nombre').value = '';
+            document.getElementById('modal-cantidad').value = '1';
+            document.getElementById('modal-producto').style.display = 'flex';
+            document.getElementById('modal-nombre').focus();
+        }
+
+        function cerrarModalProducto() {
+            document.getElementById('modal-producto').style.display = 'none';
+        }
+
+        // Lógica unificada: Guarda en Supabase (si es nuevo) y carga en la tabla visual
+        async function procesarGuardadoModal() {
+            const supabase = window.supabaseClient;
+            let codigo = document.getElementById('modal-codigo').value.trim();
+            const nombre = document.getElementById('modal-nombre').value.trim();
+            const category = document.getElementById('modal-categoria').value;
+            const cantidad = parseInt(document.getElementById('modal-cantidad').value) || 1;
+
+            if (!nombre) return alert("El nombre del producto es obligatorio.");
             
-            // Guardar en la estructura temporal en memoria
+            // Si es manual puro sin código, le asignamos uno temporal único basado en la hora
+            if (!codigo) codigo = 'MAN-' + Date.now();
+
+            // 1. Verificar primero si por error manual ya existía ese código (CORREGIDO con .maybeSingle)
+            let { data: producto } = await supabase.from('productos_maestro').select('*').eq('codigo_barras', codigo).maybeSingle();
+
+            if (!producto) {
+                // Registro "en caliente" en el maestro (CORREGIDO con .maybeSingle)
+                const { data: nuevoProd, error } = await supabase
+                    .from('productos_maestro')
+                    .insert([{ codigo_barras: codigo, nombre_producto: nombre, categoria: category }])
+                    .select()
+                    .maybeSingle();
+                
+                if (error) return alert("Error al registrar producto base: " + error.message);
+                producto = nuevoProd;
+            }
+
+            // 2. Cargar en la lista
+            agregarAFormularioTemporal(producto, cantidad);
+            cerrarModalProducto();
+        }
+
+        function agregarAFormularioTemporal(producto, cantidad) {
             productosDonados.push({
                 producto_id: producto.id,
                 nombre: producto.nombre_producto,
@@ -180,54 +273,63 @@
                 cantidad: cantidad
             });
             
-            // Pintar la fila en la tabla de la pantalla
             const cuerpoTabla = document.getElementById('lista-cuerpo');
-            const fila = document.createElement('tr');
-            fila.innerHTML = `
-                <td><strong>${producto.nombre_producto}</strong></td>
-                <td><span class="badge badge-transito">${producto.categoria}</span></td>
-                <td>${cantidad} unidades</td>
+            cuerpoTabla.innerHTML += `
+                <tr>
+                    <td><strong>${producto.nombre_producto}</strong></td>
+                    <td><span class="badge badge-transito">${producto.categoria}</span></td>
+                    <td>${cantidad} u.</td>
+                </tr>
             `;
-            cuerpoTabla.appendChild(fila);
         }
 
-        // Botón final: Envía la carga completa y consolida stocks
+        // Consolidación final de la donación entera
         document.getElementById('btn-guardar-donacion').addEventListener('click', async () => {
             const supabase = window.supabaseClient;
             const centroId = document.getElementById('centro-receptor').value;
-            const nombreDonante = document.getElementById('donante-nombre').value || "Anónimo";
+            const nombreDonante = document.getElementById('donante-nombre').value.trim() || "Anónimo";
 
-            if (!centroId) return alert("Por favor, seleccione qué centro está recibiendo la donación.");
-            if (productosDonados.length === 0) return alert("No hay productos escaneados en la lista.");
+            if (!centroId) return alert("Por favor, seleccione el centro receptor.");
+            if (productosDonados.length === 0) return alert("No hay productos en la lista.");
 
-            // A. Registrar donante si no es anónimo
+            // A. Manejo de Donantes: Busca si ya existe por nombre para no repetir
             let donanteId = null;
             if (nombreDonante !== "Anónimo") {
-                const { data: donante } = await supabase.from('donantes').insert([{
-                    nombre_o_razon_social: nombreDonante,
-                    tipo_donante: document.getElementById('donante-tipo').value,
-                    telefono: document.getElementById('donante-telefono').value
-                }]).select().single();
-                donanteId = donante?.id;
+                const { data: donanteExistente } = await supabase
+                    .from('donantes')
+                    .select('id')
+                    .eq('nombre_o_razon_social', nombreDonante)
+                    .maybeSingle();
+
+                if (donanteExistente) {
+                    donanteId = donanteExistente.id;
+                } else {
+                    // Si es nuevo, lo crea de una vez (CORREGIDO con .maybeSingle)
+                    const { data: nuevoDonante } = await supabase.from('donantes').insert([{
+                        nombre_o_razon_social: nombreDonante,
+                        tipo_donante: document.getElementById('donante-tipo').value,
+                        telefono: document.getElementById('donante-telefono').value
+                    }]).select().maybeSingle();
+                    donanteId = nuevoDonante?.id;
+                }
             }
 
-            // B. Crear el registro principal (Cabecera)
-            const { data: donacionCabecera, error: errCab } = await supabase.from('donaciones_ingresos').insert([{
+            // B. Crear la cabecera (CORREGIDO con .maybeSingle)
+            const { data: cabecera, error: errCab } = await supabase.from('donaciones_ingresos').insert([{
                 centro_receptor_id: centroId,
                 donante_id: donanteId
-            }]).select().single();
+            }]).select().maybeSingle();
 
-            if (errCab) return alert("Error al abrir manifiesto de donación.");
+            if (errCab) return alert("Error al abrir manifiesto.");
 
-            // C. Guardar el desglose y actualizar el balance de inventario físico
+            // C. Desglosar detalles e impactar inventario
             for (const prod of productosDonados) {
                 await supabase.from('detalle_donacion_ingreso').insert([{
-                    donacion_id: donacionCabecera.id,
+                    donacion_id: cabecera.id,
                     producto_id: prod.producto_id,
                     cantidad: prod.cantidad
                 }]);
 
-                // Llamada a la función SQL que creamos en Supabase para sumar el stock de forma segura
                 await supabase.rpc('ingresar_o_sumar_stock', {
                     p_centro_id: parseInt(centroId),
                     p_producto_id: parseInt(prod.producto_id),
@@ -235,8 +337,8 @@
                 });
             }
 
-            alert("✓ Donación procesada con éxito. Los balances de inventario han sido actualizados.");
-            location.reload(); // Recarga la página para dejarla limpia para la próxima recepción
+            alert("✓ Todo registrado con éxito. Inventarios actualizados y donante indexado.");
+            location.reload();
         });
     </script>
 </body>

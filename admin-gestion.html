@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Administración - Gestión Central</title>
+    <link rel="stylesheet" href="css/estilos.css">
+    <script src="js/libs/supabase-js.js"></script>
+    <script src="js/supabase-config.js"></script>
+</head>
+<body style="background-color: #0f172a; color: #f8fafc; padding: 30px; font-family: sans-serif;">
+
+    <div style="max-width: 1200px; margin: 0 auto;">
+        <h2>⚙️ Panel de Control de Administrador</h2>
+        <p style="color: #94a3b8;">Gestión de Nodos Operativos, Personal y Credenciales del Sistema</p>
+
+        <div class="tarjeta" style="background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+            <h3>👥 Control de Usuarios y Claves</h3>
+            <form id="form-usuario" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                <input type="hidden" id="user-id">
+                <input type="text" id="user-username" placeholder="Usuario / Indicativo" required style="padding: 8px; background: #334155; border: none; color: #fff;">
+                <input type="text" id="user-password" placeholder="Contraseña Nueva" required style="padding: 8px; background: #334155; border: none; color: #fff;">
+                <input type="text" id="user-nombre" placeholder="Nombre Completo" required style="padding: 8px; background: #334155; border: none; color: #fff;">
+                <select id="user-rol" style="padding: 8px; background: #334155; border: none; color: #fff;">
+                    <option value="operador">Operador de Centro</option>
+                    <option value="admin">Administrador General</option>
+                </select>
+                <select id="user-centro" style="padding: 8px; background: #334155; border: none; color: #fff;">
+                    <option value="">Asignar Centro (Ninguno/Admin)</option>
+                </select>
+                <button type="submit" class="btn btn-verde">Guardar / Actualizar</button>
+            </form>
+
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="background: #334155;">
+                        <th style="padding: 10px;">Usuario</th>
+                        <th>Nombre</th>
+                        <th>Rol</th>
+                        <th>Centro Asignado</th>
+                        <th>Clave Activa</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-usuarios-cuerpo"></tbody>
+            </table>
+        </div>
+
+        <div class="tarjeta" style="background: #1e293b; padding: 20px; border-radius: 8px;">
+            <h3>🏢 Gestión de Centros de Acopio (Nodos)</h3>
+            <form id="form-centro" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="centro-nombre" placeholder="Nombre del Centro de Acopio" required style="padding: 8px; background: #334155; border: none; color: #fff; flex: 1;">
+                <input type="text" id="centro-ubicacion" placeholder="Ubicación / Región" required style="padding: 8px; background: #334155; border: none; color: #fff; flex: 1;">
+                <button type="submit" class="btn btn-azul">Agregar Nodo</button>
+            </form>
+
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="background: #334155;">
+                        <th style="padding: 10px;">ID</th>
+                        <th>Nombre del Nodo</th>
+                        <th>Ubicación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-centros-cuerpo"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Protección de ruta: Si no es admin, patitas a la calle
+            if (sessionStorage.getItem('usuario_rol') !== 'admin') {
+                alert("Acceso denegado. No tienes credenciales de Administrador.");
+                location.href = 'dashboard.html';
+                return;
+            }
+            await cargarDatosAdmin();
+        });
+
+        async function cargarDatosAdmin() {
+            const supabase = window.supabaseClient;
+
+            // 1. Cargar Centros en Selectores y Tablas
+            const { data: centros } = await supabase.from('centros_acopio').select('*');
+            const selectorCentro = document.getElementById('user-centro');
+            const tablaCentros = document.getElementById('tabla-centros-cuerpo');
+            
+            selectorCentro.innerHTML = '<option value="">Asignar Centro (Ninguno/Admin)</option>';
+            tablaCentros.innerHTML = '';
+            
+            centros?.forEach(c => {
+                selectorCentro.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+                tablaCentros.innerHTML += `
+                    <tr style="border-bottom: 1px solid #334155;">
+                        <td style="padding: 10px;">#${c.id}</td>
+                        <td><strong>${c.nombre}</strong></td>
+                        <td>${c.ubicacion || 'N/A'}</td>
+                        <td>
+                            <button class="btn btn-rojo" onclick="eliminarCentro(${c.id})" style="padding:4px 8px; font-size:0.8rem;">Eliminar</button>
+                        </td>
+                    </tr>`;
+            });
+
+            // 2. Cargar Usuarios
+            const { data: usuarios } = await supabase.from('usuarios_sistema').select('*');
+            const tablaUsuarios = document.getElementById('tabla-usuarios-cuerpo');
+            tablaUsuarios.innerHTML = '';
+
+            usuarios?.forEach(u => {
+                const centroNombre = centros?.find(c => c.id === u.centro_asignado_id)?.nombre || 'Todos (Global)';
+                tablaUsuarios.innerHTML += `
+                    <tr style="border-bottom: 1px solid #334155;">
+                        <td style="padding: 10px;">${u.username}</td>
+                        <td>${u.nombre_completo}</td>
+                        <td><span class="badge">${u.rol}</span></td>
+                        <td>${centroNombre}</td>
+                        <td><code>${u.password_text}</code></td>
+                        <td>
+                            <button class="btn btn-azul" onclick="editarUsuario('${u.username}', '${u.nombre_completo}', '${u.password_text}', '${u.rol}', '${u.centro_asignado_id || ''}', ${u.id})" style="padding:4px 8px; font-size:0.8rem;">Editar</button>
+                            <button class="btn btn-rojo" onclick="eliminarUsuario(${u.id})" style="padding:4px 8px; font-size:0.8rem;">Eliminar</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        // --- ACCIONES CRUD USUARIOS ---
+        document.getElementById('form-usuario').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('user-id').value;
+            const username = document.getElementById('user-username').value.trim();
+            const password_text = document.getElementById('user-password').value;
+            const nombre_completo = document.getElementById('user-nombre').value.trim();
+            const rol = document.getElementById('user-rol').value;
+            const centro_id = document.getElementById('user-centro').value;
+
+            const payload = {
+                username, password_text, nombre_completo, rol,
+                centro_asignado_id: centro_id ? parseInt(centro_id) : null
+            };
+
+            if (id) {
+                await window.supabaseClient.from('usuarios_sistema').update(payload).eq('id', id);
+            } else {
+                await window.supabaseClient.from('usuarios_sistema').insert([payload]);
+            }
+            document.getElementById('form-usuario').reset();
+            document.getElementById('user-id').value = '';
+            await cargarDatosAdmin();
+        });
+
+        function editarUsuario(username, nombre, clave, rol, centroId, id) {
+            document.getElementById('user-id').value = id;
+            document.getElementById('user-username').value = username;
+            document.getElementById('user-password').value = clave;
+            document.getElementById('user-nombre').value = nombre;
+            document.getElementById('user-rol').value = rol;
+            document.getElementById('user-centro').value = centroId;
+        }
+
+        async function eliminarUsuario(id) {
+            if (confirm("¿Seguro que deseas dar de baja a este operador?")) {
+                await window.supabaseClient.from('usuarios_sistema').delete().eq('id', id);
+                await cargarDatosAdmin();
+            }
+        }
+
+        // --- ACCIONES CRUD CENTROS ---
+        document.getElementById('form-centro').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nombre = document.getElementById('centro-nombre').value.trim();
+            const ubicacion = document.getElementById('centro-ubicacion').value.trim();
+
+            await window.supabaseClient.from('centros_acopio').insert([{ nombre, ubicacion }]);
+            document.getElementById('form-centro').reset();
+            await cargarDatosAdmin();
+        });
+
+        async function eliminarCentro(id) {
+            if (confirm("Al eliminar este centro se desvincularán sus inventarios. ¿Proceder?")) {
+                await window.supabaseClient.from('centros_acopio').delete().eq('id', id);
+                await cargarDatosAdmin();
+            }
+        }
+    </script>
+</body>
+</html>
