@@ -73,7 +73,7 @@
         <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
         <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
         <li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
-	<li><a href="estadisticas_pro.html" class="navbar-link">📊 Estadísticas Pro</a></li>
+        <li><a href="estadisticas_pro.html" class="navbar-link">📊 Estadísticas Pro</a></li>
         <li><a href="#" onclick="sessionStorage.clear(); location.href='index.html';" class="navbar-link" style="color: #ef4444; font-weight: bold;">🚪 Cerrar Sesión</a></li>
     </ul>
 </nav>
@@ -146,6 +146,12 @@
                 </button>
             </div>
         </div>
+
+        <!-- PIE DE PÁGINA PROFESIONAL INTEGRADO -->
+        <footer style="text-align: center; padding: 25px 10px; color: #64748b; font-size: 0.8rem; margin-top: 50px; background: #0f172a; border-top: 1px solid #1e293b; border-radius: 6px 6px 0 0;">
+            <div style="font-weight: bold; color: #94a3b8; margin-bottom: 4px;">🛡️ Sistema Central de Logística Humanitaria</div>
+            <div>© Todos los derechos reservados. Desarrollado por <strong>Antonio Altuna Guánchez</strong> | Guarenas - Venezuela (2026 - 2030)</div>
+        </footer>
     </div>
 
     <div id="modal-producto" class="modal">
@@ -235,7 +241,8 @@
         }
 
         async function onScanSuccess(decodedText) {
-            document.getElementById('codigo-detectated').textContent = decodedText;
+            // CORREGIDO: Ajustado al ID exacto del HTML para evitar detener el script
+            document.getElementById('codigo-detectado').textContent = decodedText;
             
             const { data: producto, error } = await window.supabaseClient
                 .from('productos_maestro')
@@ -248,8 +255,14 @@
             if (!producto) {
                 abrirModalProducto(decodedText);
             } else {
-                let cantidad = parseInt(prompt(`¿Cuántas unidades de "${producto.nombre_producto}" ingresan?`, "1")) || 1;
-                agregarAFormularioTemporal(producto, cantidad);
+                // CORREGIDO: Abre el modal auto-rellenando los datos y posiciona el cursor en cantidad
+                document.getElementById('modal-nombre').value = producto.nombre_producto;
+                document.getElementById('modal-codigo').value = producto.codigo_barras;
+                document.getElementById('modal-categoria').value = producto.categoria;
+                document.getElementById('modal-cantidad').value = '1';
+                
+                document.getElementById('modal-producto').style.display = 'flex';
+                document.getElementById('modal-cantidad').focus();
             }
         }
 
@@ -259,14 +272,12 @@
             document.getElementById('btn-modal-guardar').addEventListener('click', procesarGuardadoModal);
         }
 
-        // LÓGICA DEL DOBLE BUSCADOR INDEPENDIENTE (EVITA LOOPS INFINITOS)
         function configurarDobleBuscadorModal() {
             const inputNombre = document.getElementById('modal-nombre');
             const inputCodigo = document.getElementById('modal-codigo');
             const sugerenciasNombre = document.getElementById('sugerencias-nombre-lista');
             const sugerenciasCodigo = document.getElementById('sugerencias-codigo-lista');
 
-            // A. Buscador por Escritura de Nombre
             inputNombre.addEventListener('input', async () => {
                 const query = inputNombre.value.trim();
                 sugerenciasCodigo.style.display = 'none';
@@ -295,7 +306,7 @@
                     li.textContent = `${p.nombre_producto} [Código: ${p.codigo_barras || 'Manual'}]`;
                     li.addEventListener('click', () => {
                         inputNombre.value = p.nombre_producto;
-                        inputCodigo.value = p.codigo_barras || ''; // Escribe valor sin disparar evento input
+                        inputCodigo.value = p.codigo_barras || ''; 
                         document.getElementById('modal-categoria').value = p.categoria;
                         sugerenciasNombre.style.display = 'none';
                         document.getElementById('modal-cantidad').focus();
@@ -304,7 +315,6 @@
                 });
             });
 
-            // B. Buscador por Escritura o Disparo de Código de Barras
             inputCodigo.addEventListener('input', async () => {
                 const query = inputCodigo.value.trim();
                 sugerenciasNombre.style.display = 'none';
@@ -317,7 +327,7 @@
                 const { data: productos } = await window.supabaseClient
                     .from('productos_maestro')
                     .select('id, nombre_producto, codigo_barras, categoria')
-                    .eq('codigo_barras', query) // Busca coincidencia exacta primero
+                    .eq('codigo_barras', query) 
                     .limit(5);
 
                 if (!productos || productos.length === 0) {
@@ -332,7 +342,7 @@
                     const li = document.createElement('li');
                     li.textContent = `[${p.codigo_barras}] - ${p.nombre_producto}`;
                     li.addEventListener('click', () => {
-                        inputNombre.value = p.nombre_producto; // Escribe valor sin disparar evento input
+                        inputNombre.value = p.nombre_producto; 
                         inputCodigo.value = p.codigo_barras;
                         document.getElementById('modal-categoria').value = p.categoria;
                         sugerenciasCodigo.style.display = 'none';
@@ -341,7 +351,6 @@
                     sugerenciasCodigo.appendChild(li);
                 });
                 
-                // Si la pistola de barras escribe el código completo y es único, lo auto-selecciona rápido
                 if(productos.length === 1 && productos[0].codigo_barras === query) {
                     inputNombre.value = productos[0].nombre_producto;
                     document.getElementById('modal-categoria').value = productos[0].categoria;
@@ -349,7 +358,6 @@
                 }
             });
 
-            // Cerrar listas al hacer clic fuera del modal
             document.addEventListener('click', (e) => {
                 if (e.target !== inputNombre) sugerenciasNombre.style.display = 'none';
                 if (e.target !== inputCodigo) sugerenciasCodigo.style.display = 'none';
