@@ -3,13 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
-    <title>Traslado entre Centros - Logística de Emergencia</title>
+    <title>Traslado entre Centros - Nota de Entrega</title>
     <link rel="stylesheet" href="css/estilos.css">
 
     <script src="js/libs/supabase-js.js"></script>
     <script src="js/supabase_config.js"></script>
     <script src="js/libs/html5-qrcode.min.js"></script>
     <script src="js/modulos/donaciones.js"></script>
+    <style>
+        .contenedor-buscador {
+            position: relative;
+            width: 100%;
+        }
+        .lista-sugerencias {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 999;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            margin-top: 2px;
+            padding: 0;
+            list-style: none;
+            display: none;
+        }
+        .lista-sugerencias li {
+            padding: 10px;
+            color: #fff;
+            cursor: pointer;
+            border-bottom: 1px solid #334155;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+        .lista-sugerencias li:last-child {
+            border-bottom: none;
+        }
+        .lista-sugerencias li:hover {
+            background: #3b82f6;
+        }
+    </style>
 </head>
 <body>
 <nav class="navbar">
@@ -19,162 +56,322 @@
         <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
         <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
         <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
-	<li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
+        <li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
+        <li><a href="#" onclick="sessionStorage.clear(); location.href='index.html';" class="navbar-link" style="color: #ef4444; font-weight: bold;">🚪 Cerrar Sesión</a></li>
     </ul>
 </nav>
 
     <div class="contenedor">
         <header style="margin-bottom: 20px;">
-            <h1>Despacho de Traslados (Entre Centros)</h1>
-            <p>Mueve suministros de un centro de acopio a otro para equilibrar inventarios.</p>
+            <h1>🧾 Nota de Despacho y Traslado Logístico</h1>
+            <p>Control de carga y balance de inventario en formato de manifiesto unificado.</p>
         </header>
 
-        <div class="tarjeta">
-            <h2>1. Información Logística del Envío</h2>
+        <div class="tarjeta" style="border: 1px solid #334155; position: relative;">
+            <div style="position: absolute; top: 15px; right: 20px; text-align: right;">
+                <span style="color: #f59e0b; font-weight: bold; font-size: 1.1rem; display: block;">MANIFIESTO DE TRASLADO</span>
+                <small style="color: #64748b;" id="factura-fecha">Fecha: --/--/----</small>
+            </div>
+
+            <h3 style="margin-top: 0; color: #3b82f6; border-bottom: 1px solid #334155; padding-bottom: 8px; width: 60%;">1. Datos del Emisor y Destino</h3>
             <div class="grid-2">
                 <div>
-                    <label for="centro-origen">Centro de Acopio Origen (Sale stock):</label>
-                    <select id="centro-origen"><option value="">Seleccione origen...</option></select>
+                    <label for="centro-origen">📍 Centro de Acopio Origen (Remitente):</label>
+                    <select id="centro-origen" style="font-weight: bold;"><option value="">Seleccione origen...</option></select>
                 </div>
                 <div>
-                    <label for="centro-destino">Centro de Acopio Destino (Recibe):</label>
-                    <select id="centro-destino"><option value="">Seleccione destino...</option></select>
+                    <label for="centro-destino">🏢 Centro de Acopio Destino (Consignatario):</label>
+                    <select id="centro-destino" style="font-weight: bold;"><option value="">Seleccione destino...</option></select>
                 </div>
             </div>
+
+            <h3 style="color: #3b82f6; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-top: 20px; width: 60%;">2. Información de Transporte y Chofer</h3>
             <div class="grid-2">
                 <div>
-                    <label for="chofer-nombre">Nombre del Conductor / Chofer:</label>
+                    <label for="chofer-nombre">Nombre del Conductor Autorizado:</label>
                     <input type="text" id="chofer-nombre" placeholder="Ej. Carlos Mendoza">
                 </div>
                 <div>
-                    <label for="chofer-contacto">Teléfono o Radio del Chofer:</label>
+                    <label for="chofer-contacto">Teléfono / Radio de Contacto:</label>
                     <input type="text" id="chofer-contacto" placeholder="Ej. 0424-1112233">
                 </div>
             </div>
             <div class="grid-2">
                 <div>
                     <label for="vehiculo-placa">Placa del Vehículo:</label>
-                    <input type="text" id="vehiculo-placa" placeholder="Ej. AB123CD">
+                    <input type="text" id="vehiculo-placa" placeholder="Ej. AB123CD" style="text-transform: uppercase;">
                 </div>
                 <div>
-                    <label for="vehiculo-modelo">Modelo / Capacidad del Camión:</label>
+                    <label for="vehiculo-modelo">Modelo y Capacidad de Carga:</label>
                     <input type="text" id="vehiculo-modelo" placeholder="Ej. Camión NPR 4 Ton">
                 </div>
             </div>
         </div>
 
         <div class="grid-2">
-            <div class="tarjeta">
-                <h2>2. Escanear Carga a Despachar</h2>
-                <div id="lector-camara" style="width: 100%; border-radius: 8px; overflow: hidden; background: #000;"></div>
-                <p style="margin-top: 10px;">Código detectado: <strong id="codigo-detectado" style="color: var(--color-alerta);">Ninguno</strong></p>
+            <div>
+                <div class="tarjeta">
+                    <h2>📷 Escanear Código de Suministros</h2>
+                    <div id="lector-camara" style="width: 100%; border-radius: 8px; overflow: hidden; background: #000;"></div>
+                    <p style="margin-top: 10px;">Código detectado: <strong id="codigo-detectado" style="color: var(--color-alerta);">Ninguno</strong></p>
+                </div>
+
+                <div class="tarjeta" style="background: #1e293b; padding: 15px; margin-top: 15px;">
+                    <label style="font-size: 0.9rem; display: block; color: #94a3b8; margin-bottom: 8px;">
+                        🔍 Buscador en Vivo (Escribe para buscar):
+                    </label>
+                    <div class="contenedor-buscador">
+                        <input type="text" id="manual-item-codigo" placeholder="Escribe parte del nombre o código..." 
+                               autocomplete="off"
+                               style="width: 100%; padding: 10px; background: #334155; border: 1px solid #475569; color: #fff; border-radius: 4px; margin:0; box-sizing: border-box;">
+                        <ul id="sugerencias-lista" class="lista-sugerencias"></ul>
+                    </div>
+                </div>
             </div>
 
-            <div class="tarjeta">
-                <h2>3. Manifiesto de Carga (Suministros en Camión)</h2>
-                <table class="tabla-logistica">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Cantidad a Enviar</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lista-carga-cuerpo">
-                        </tbody>
-                </table>
-                <button id="btn-despachar-camion" style="margin-top: 20px; width: 100%; background-color: var(--color-alerta); font-size: 1.1rem;">
-                    🚚 Autorizar Despacho y Colocar En Tránsito
-                </button>
+            <div class="tarjeta" style="border: 1px solid #334155; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <h2>📦 Detalle de Artículos Cargados</h2>
+                    <table class="tabla-logistica" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f1f5f9;">
+                                <th style="width: 50%; color: #1e293b; font-weight: bold; padding: 12px 10px; text-align: left; border-bottom: 2px solid #cbd5e1;">Descripción del Producto</th>
+                                <th style="width: 30%; text-align: center; color: #1e293b; font-weight: bold; padding: 12px 10px; border-bottom: 2px solid #cbd5e1;">Cantidad Volumétrica</th>
+                                <th style="width: 20%; text-align: center; color: #1e293b; font-weight: bold; padding: 12px 10px; border-bottom: 2px solid #cbd5e1;">Quitar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="factura-cuerpo"></tbody>
+                    </table>
+                    <div id="factura-vacia-msg" style="text-align: center; color: #64748b; padding: 30px 10px;">
+                        La nota de despacho no tiene renglones asignados. Escanea o digita suministros.
+                    </div>
+                </div>
+
+                <div style="border-top: 2px solid #334155; margin-top: 20px; padding-top: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 10px 15px 10px;">
+                        <span style="font-size: 1.1rem; color: #94a3b8; font-weight: bold;">TOTAL UNIDADES A DESPACHAR:</span>
+                        <span id="factura-total-unidades" style="font-size: 1.6rem; color: #10b981; font-weight: bold;">0</span>
+                    </div>
+                    <button id="btn-despachar-camion" style="margin: 0; width: 100%; background-color: var(--color-alerta); font-size: 1.2rem; font-weight: bold; padding: 12px;">
+                        🚚 Validar, Firmar y Colocar En Tránsito
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    
     <script>
-// Verificar si hay sesión activa
-const sesionRol = sessionStorage.getItem('usuario_rol');
-const sesionCentroId = sessionStorage.getItem('usuario_centro_id');
+        const sesionRol = sessionStorage.getItem('usuario_rol');
+        const sesionCentroId = sessionStorage.getItem('usuario_centro_id');
 
-if (!sesionRol) {
-    alert("Acceso denegado. Por favor inicie sesión.");
-    location.href = 'index.html';
-}
+        if (!sesionRol) {
+            alert("Acceso denegado. Por favor inicie sesión.");
+            location.href = 'index.html';
+        }
 
-// Lógica de restricción visual para selects o filtros
-function aplicarRestriccionPorCentro(selectElementId) {
-    const selector = document.getElementById(selectElementId);
-    if (!selector) return;
-
-    if (sesionRol === 'operador') {
-        // Si es operador, forzar a que el select use únicamente su centro asignado
-        selector.value = sesionCentroId;
-        selector.disabled = true; // Deshabilitar para que no pueda cambiar de almacén
-    }
-}
         let itemsCarga = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!window.supabaseClient) return alert("Supabase no conectado.");
+            
+            const hoy = new Date();
+            document.getElementById('factura-fecha').textContent = `Fecha: ${hoy.getDate()}/${hoy.getMonth() + 1}/${hoy.getFullYear()}`;
+            
             await cargarSelectoresCentros();
+            aplicarRestriccionPorCentro('centro-origen');
             inicializarEscaner();
+            configurarBuscadorDinamico();
         });
 
         async function cargarSelectoresCentros() {
-            const { data: centros } = await window.supabaseClient.from('centros_acopio').select('id, nombre');
+            const { data: centros, error } = await window.supabaseClient.from('centros_acopio').select('id, nombre');
+            if (error) return console.error("Error cargando centros:", error.message);
+
             const orig = document.getElementById('centro-origen');
             const dest = document.getElementById('centro-destino');
+            
+            orig.innerHTML = '<option value="">Seleccione origen...</option>';
+            dest.innerHTML = '<option value="">Seleccione destino...</option>';
+            
             centros.forEach(c => {
                 orig.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
                 dest.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
             });
         }
 
+        function aplicarRestriccionPorCentro(selectElementId) {
+            const selector = document.getElementById(selectElementId);
+            if (!selector) return;
+
+            if (sesionRol === 'operador' && sesionCentroId) {
+                selector.value = parseInt(sesionCentroId);
+                selector.disabled = true; 
+            } else if (sesionCentroId) {
+                selector.value = parseInt(sesionCentroId);
+            }
+        }
+
         function inicializarEscaner() {
             const scanner = new Html5QrcodeScanner("lector-camara", { fps: 15, qrbox: { width: 250, height: 150 } });
             scanner.render(async (codigo) => {
                 document.getElementById('codigo-detectado').textContent = codigo;
-                
-                const { data: prod } = await window.supabaseClient.from('productos_maestro').select('*').eq('codigo_barras', codigo).single();
-                if (!prod) return alert("El producto no está registrado en el catálogo maestro. Regístrelo primero en Donaciones.");
-                
-                let cant = parseInt(prompt(`¿Cuántas unidades de "${prod.nombre_producto}" suben al camión?`, "1")) || 1;
-                
-                itemsCarga.push({ producto_id: prod.id, nombre: prod.nombre_producto, cantidad: cant });
-                
-                const tabla = document.getElementById('lista-carga-cuerpo');
-                tabla.innerHTML += `<tr><td><strong>${prod.nombre_producto}</strong></td><td>${cant} unidades</td></tr>`;
+                await buscarPorCodigoExacto(codigo);
             });
         }
+
+        function configurarBuscadorDinamico() {
+            const inputManual = document.getElementById('manual-item-codigo');
+            const listaSugerencias = document.getElementById('sugerencias-lista');
+
+            if (!inputManual || !listaSugerencias) return;
+
+            inputManual.addEventListener('input', async () => {
+                const query = inputManual.value.trim();
+
+                if (query.length < 2) {
+                    textSugerencias.style.display = 'none';
+                    return;
+                }
+
+                const { data: productos, error } = await window.supabaseClient
+                    .from('productos_maestro')
+                    .select('id, nombre_producto, Ext:codigo_barras')
+                    .or(`codigo_barras.eq.${query},nombre_producto.ilike.%${query}%`)
+                    .limit(6);
+
+                if (error || !productos || productos.length === 0) {
+                    listaSugerencias.style.display = 'none';
+                    return;
+                }
+
+                listaSugerencias.innerHTML = "";
+                listaSugerencias.style.display = 'block';
+
+                productos.forEach(p => {
+                    const li = document.createElement('li');
+                    li.textContent = `${p.nombre_producto} [Ref: ${p.codigo_barras || 'S/C'}]`;
+                    li.addEventListener('click', () => {
+                        insertarProductoEnFactura(p);
+                        listaSugerencias.style.display = 'none';
+                        inputManual.value = "";
+                        inputManual.focus();
+                    });
+                    listaSugerencias.appendChild(li);
+                });
+            });
+
+            document.addEventListener('click', (e) => {
+                if (e.target !== inputManual) {
+                    listaSugerencias.style.display = 'none';
+                }
+            });
+        }
+
+        async function buscarPorCodigoExacto(codigo) {
+            const { data: prod, error } = await window.supabaseClient
+                .from('productos_maestro')
+                .select('*')
+                .eq('codigo_barras', codigo)
+                .maybeSingle();
+
+            if (error) return console.error("Error base de datos:", error.message);
+
+            if (!prod) {
+                alert(`El código "${codigo}" no existe en el catálogo maestro.`);
+                return;
+            }
+            insertarProductoEnFactura(prod);
+        }
+
+        function insertarProductoEnFactura(prod) {
+            const itemExistente = itemsCarga.find(i => i.producto_id === prod.id);
+            if (itemExistente) {
+                itemExistente.cantidad += 1;
+            } else {
+                itemsCarga.push({ producto_id: prod.id, nombre: prod.nombre_producto, cantidad: 1 });
+            }
+            renderizarFactura();
+        }
+
+        function renderizarFactura() {
+            const cuerpo = document.getElementById('factura-cuerpo');
+            const msgVacio = document.getElementById('factura-vacia-msg');
+            
+            cuerpo.innerHTML = "";
+            
+            if (itemsCarga.length === 0) {
+                msgVacio.style.display = "block";
+                document.getElementById('factura-total-unidades').textContent = "0";
+                return;
+            }
+            
+            msgVacio.style.display = "none";
+            let totalGeneralUnidades = 0;
+
+            itemsCarga.forEach((item, index) => {
+                totalGeneralUnidades += item.cantidad;
+                cuerpo.innerHTML += `
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 12px 10px; text-align: left; vertical-align: middle;">
+                            <strong style="color: #1e293b; font-size: 1rem; display: block; font-weight: 700;">${item.nombre}</strong>
+                            <span style="font-size: 0.75rem; color: #64748b; display: block; margin-top: 2px;">Renglón #${index + 1}</span>
+                        </td>
+                        <td style="text-align: center; padding: 10px; vertical-align: middle;">
+                            <input type="number" value="${item.cantidad}" min="1" 
+                                   onchange="actualizarCantidadFactura(${index}, this.value)" 
+                                   style="width: 70px; padding: 6px; background: #0f172a; border: 1px solid #475569; color: #10b981; text-align: center; font-weight: bold; border-radius: 4px;">
+                        </td>
+                        <td style="text-align: center; padding: 10px; vertical-align: middle;">
+                            <button type="button" onclick="eliminarRenglonFactura(${index})" 
+                                    style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem;">❌</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('factura-total-unidades').textContent = totalGeneralUnidades;
+        }
+
+        window.actualizarCantidadFactura = function(index, nuevaCantidad) {
+            const cant = parseInt(nuevaCantidad) || 1;
+            itemsCarga[index].cantidad = cant;
+            renderizarFactura();
+        };
+
+        window.eliminarRenglonFactura = function(index) {
+            itemsCarga.splice(index, 1);
+            renderizarFactura();
+        };
 
         document.getElementById('btn-despachar-camion').addEventListener('click', async () => {
             const supabase = window.supabaseClient;
             const origId = document.getElementById('centro-origen').value;
             const destId = document.getElementById('centro-destino').value;
 
-            if (!origId || !destId || origId === destId) return alert("Verifique los centros de origen y destino.");
-            if (itemsCarga.length === 0) return alert("El camión está vacío.");
+            if (!origId || !destId || origId === destId) return alert("Verifique los centros de origen y destino en la cabecera de la factura.");
+            if (itemsCarga.length === 0) return alert("No puedes emitir una nota de despacho vacía.");
 
-            // 1. Registrar la cabecera del traslado
-            const { data: traslado, error: errCab } = await supabase.from('traslados_entre_centros').insert([{
-                centro_origen_id: origId,
-                centro_destino_id: destId,
-                transportista_nombre: document.getElementById('chofer-nombre').value || "No especificado",
-                transportista_contacto: document.getElementById('chofer-contacto').value || "No especificado",
-                vehiculo_placa: document.getElementById('vehiculo-placa').value || "S/P",
-                vehiculo_modelo: document.getElementById('vehiculo-modelo').value || "S/M"
+            const { data: traslado, error: errCab } = await supabase.from('traslados').insert([{
+                centro_origen_id: parseInt(origId),
+                centro_destino_id: parseInt(destId),
+                chofer_datos: document.getElementById('chofer-nombre').value || "No especificado",
+                vehiculo_placa: document.getElementById('vehiculo-placa').value.toUpperCase() || "S/P",
+                estado: "EN_TRANSITO"
             }]).select().single();
 
-            if (errCab) return alert("Error al registrar el manifiesto de traslado.");
+            if (errCab) {
+                console.error("Error cabecera:", errCab.message);
+                return alert("Error al guardar la cabecera de la factura.");
+            }
 
-            // 2. Insertar detalles y restar stock físico del origen
             for (const item of itemsCarga) {
-                await supabase.from('detalle_traslado_centros').insert([{
+                await supabase.from('detalle_traslado').insert([{
                     traslado_id: traslado.id,
-                    producto_id: item.producto_id,
-                    cantidad_despachada: item.cantidad
+                    item_nombre: item.nombre,
+                    cantidad_enviada: item.cantidad,
+                    cantidad_recibida: 0
                 }]);
 
-                // Llamada RPC para descontar inventario del centro que envía
                 await supabase.rpc('restar_stock_centro', {
                     p_centro_id: parseInt(origId),
                     p_producto_id: parseInt(item.producto_id),
@@ -182,7 +379,7 @@ function aplicarRestriccionPorCentro(selectElementId) {
                 });
             }
 
-            alert("✓ Camión despachado correctamente. La carga figura 'En Tránsito'.");
+            alert(`✓ Nota de Despacho #TR-${traslado.id} emitida con éxito. El camión se encuentra en ruta.`);
             location.reload();
         });
     </script>
