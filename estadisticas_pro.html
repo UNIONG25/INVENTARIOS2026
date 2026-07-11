@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+    <title>Business Intelligence - Panel Analítico Profesional</title>
+    <link rel="stylesheet" href="css/estilos.css">
+    
+    <!-- Librerías Críticas Core -->
+    <script src="js/libs/supabase-js.js"></script>
+    <script src="js/supabase_config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-principal: #0f172a;
+            --bg-tarjeta: #1e293b;
+            --border-ui: #334155;
+            --text-muted: #94a3b8;
+            --emerald: #10b981;
+            --blue-indigo: #3b82f6;
+            --amber-warn: #f59e0b;
+            --rose-danger: #ef4444;
+            --purple-magic: #8b5cf6;
+        }
+        body {
+            background-color: var(--bg-principal);
+            color: #f8fafc;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        
+        /* BLOQUE MEMBRETE INVISIBLE EN WEB - VISIBLE EN IMPRESIÓN */
+        .membrete-reporte-pdf {
+            display: none;
+            width: 100%;
+            border-bottom: 3px solid #1e3a8a;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .membrete-texto {
+            text-align: center;
+            flex: 1;
+        }
+        .membrete-texto h2 {
+            margin: 0;
+            font-size: 1.4rem;
+            color: #0f172a;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+        .membrete-texto p {
+            margin: 3px 0 0 0;
+            font-size: 0.9rem;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .grid-pro-kpi {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .tarjeta-kpi {
+            background: var(--bg-tarjeta);
+            border: 1px solid var(--border-ui);
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+        }
+        .tarjeta-kpi::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+        }
+        .kpi-azul::before { background-color: var(--blue-indigo); }
+        .kpi-verde::before { background-color: var(--emerald); }
+        .kpi-amarillo::before { background-color: var(--amber-warn); }
+        .kpi-rojo::before { background-color: var(--rose-danger); }
+        
+        .grid-graficos-pro {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+        .chart-container-pro {
+            background: var(--bg-tarjeta);
+            border: 1px solid var(--border-ui);
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+            height: 340px;
+        }
+        .tabla-auditoria-pro {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-tarjeta);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-ui);
+        }
+        .tabla-auditoria-pro th {
+            background: #141b2d;
+            color: #fff;
+            font-weight: 600;
+            padding: 14px;
+            text-align: left;
+            border-bottom: 2px solid var(--border-ui);
+        }
+        .tabla-auditoria-pro td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-ui);
+            color: #e2e8f0;
+            font-size: 0.9rem;
+        }
+        .badge-pro {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .badge-critico { background: rgba(239, 68, 68, 0.15); color: var(--rose-danger); border: 1px solid var(--rose-danger); }
+        .badge-estable { background: rgba(16, 185, 129, 0.15); color: var(--emerald); border: 1px solid var(--emerald); }
+        .badge-alerta { background: rgba(245, 158, 11, 0.15); color: var(--amber-warn); border: 1px solid var(--amber-warn); }
+
+        /* ==========================================================================
+           🎨 PROTOCOLO DE MAQUETACIÓN DE IMPRESIÓN (FORMATO DE TU IMAGEN)
+           ========================================================================== */
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                padding: 0;
+                margin: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .navbar, #seccion-selectores-web, .btn, #bi-filtro-periodo {
+                display: none !important; /* Ocultar controles e interfaz web */
+            }
+            .contenedor {
+                max-width: 100% !important;
+                width: 100% !important;
+                padding: 0 !important;
+            }
+            header h1, header p {
+                display: none !important; /* Ocultamos el título web para usar el membrete formal */
+            }
+            
+            /* Activar Membrete Estilo Reporte Nacional */
+            .membrete-reporte-pdf {
+                display: flex !important;
+            }
+
+            /* Transformar KPIs en bloques limpios con recuadros estilo Censo */
+            .grid-pro-kpi {
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 15px !important;
+                margin-bottom: 20px !important;
+            }
+            .tarjeta-kpi {
+                background: #f8fafc !important;
+                border: 2px solid #cbd5e1 !important;
+                color: #0f172a !important;
+                padding: 12px !important;
+                border-radius: 6px !important;
+                box-shadow: none !important;
+            }
+            .tarjeta-kpi p {
+                color: #1e3a8a !important;
+                font-size: 1.6rem !important;
+            }
+            .tarjeta-kpi span {
+                color: #475569 !important;
+            }
+
+            /* Configurar Gráficos e Informes en paralelo exacto */
+            .grid-graficos-pro {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 15px !important;
+                margin-bottom: 15px !important;
+            }
+            .chart-container-pro {
+                background: #ffffff !important;
+                border: 2px solid #cbd5e1 !important;
+                border-radius: 6px !important;
+                height: 280px !important;
+                padding: 10px !important;
+            }
+            .chart-container-pro h3 {
+                color: #0f172a !important;
+                border-bottom: 1px solid #e2e8f0;
+                padding-bottom: 4px;
+            }
+
+            /* Formato de Tablas de Contingencia */
+            .tabla-auditoria-pro {
+                background: #ffffff !important;
+                border: 2px solid #cbd5e1 !important;
+            }
+            .tabla-auditoria-pro th {
+                background: #f1f5f9 !important;
+                color: #0f172a !important;
+                border-bottom: 2px solid #cbd5e1 !important;
+                padding: 10px !important;
+            }
+            .tabla-auditoria-pro td {
+                color: #0f172a !important;
+                border-bottom: 1px solid #cbd5e1 !important;
+                padding: 8px 10px !important;
+            }
+            
+            footer {
+                background: #f1f5f9 !important;
+                color: #475569 !important;
+                border-top: 2px solid #cbd5e1 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="dashboard.html" class="navbar-marca">🛡️ LogísticaDesastres</a>
+    <ul class="navbar-menu">
+        <li><a href="dashboard.html" class="navbar-link">Panel General</a></li>
+        <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
+        <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
+        <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
+        <li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
+	<li><a href="estadisticas_pro.html" class="navbar-link">📊 Estadísticas Pro</a></li>
+        <li><a href="#" onclick="sessionStorage.clear(); location.href='index.html';" class="navbar-link" style="color: #ef4444; font-weight: bold;">🚪 Cerrar Sesión</a></li>
+    </ul>
+</nav>
+
+    <div class="contenedor" style="max-width: 1400px; padding: 0 20px;">
+        
+        <!-- MEMBRETE DE IMPRESIÓN TIPO REPORTE NACIONAL (NATIVO DE TU IMAGEN) -->
+        <div class="membrete-reporte-pdf">
+            <span style="font-size: 2rem;">🇻🇪</span>
+            <div class="membrete-texto">
+                <h2>Reporte Nacional de Logística, Censo y Asistencia</h2>
+                <p>Módulo de Control Analítico de Emergencia | Cobertura Tecnológica Supabase</p>
+            </div>
+            <span style="font-size: 1.2rem; font-weight: bold; color: #475569;" id="pdf-fecha-cabecera">--/--/----</span>
+        </div>
+
+        <header style="margin: 25px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <h1 style="font-size: 2rem; font-weight: 800; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">📊 Módulo de Control Analítico Avanzado (Pro)</h1>
+                <p style="color: var(--text-muted); margin-top: 4px;">Auditoría de mermas, tendencias históricas y control por donantes.</p>
+            </div>
+            
+            <div id="seccion-selectores-web" style="background: var(--bg-tarjeta); padding: 12px 20px; border-radius: 8px; border: 1px solid var(--border-ui); display: flex; gap: 15px; align-items: center;">
+                <div>
+                    <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: bold;">NODO DE CONTROL:</label>
+                    <select id="bi-filtro-centro" style="background: var(--bg-principal); color: #fff; border: 1px solid var(--border-ui); padding: 6px 12px; border-radius: 4px; font-weight: bold; margin: 0; width: auto;"></select>
+                </div>
+                <button id="btn-bi-actualizar" class="btn btn-azul" style="margin: 0; padding: 8px 16px; height: 36px; margin-top: 16px;">Calcular</button>
+                
+                <!-- NUEVO BOTÓN: EXPORTAR A PDF CON FORMATO DE TU IMAGEN -->
+                <button onclick="window.print();" class="btn btn-verde" style="margin: 0; padding: 8px 16px; height: 36px; margin-top: 16px; font-weight: bold;">
+                    📥 Exportar PDF
+                </button>
+            </div>
+        </header>
+
+        <!-- GRID DE INDICADORES CLAVE KPI -->
+        <div class="grid-pro-kpi">
+            <div class="tarjeta-kpi kpi-azul">
+                <span style="color: var(--text-muted); font-size: 0.8rem; font-weight: bold; display: block;">VOLUMEN TOTAL EXISTENCIAS</span>
+                <p id="kpi-pro-existencias" style="font-size: 1.8rem; font-weight: 800; color: #fff; margin-top: 5px;">0 u.</p>
+                <small style="color: var(--emerald);">⚡ Unidades físicas activas</small>
+            </div>
+            <div class="tarjeta-kpi kpi-amarillo">
+                <span style="color: var(--text-muted); font-size: 0.8rem; font-weight: bold; display: block;">TRASLADOS EN TRÁNSITO</span>
+                <p id="kpi-pro-transitos" style="font-size: 1.8rem; font-weight: 800; color: #fff; margin-top: 5px;">0 despachos</p>
+                <small style="color: var(--amber-warn);">🚚 Mitigación de desabastecimiento</small>
+            </div>
+            <div class="tarjeta-kpi kpi-rojo">
+                <span style="color: var(--text-muted); font-size: 0.8rem; font-weight: bold; display: block;">INCIDENTES Y MERMAS</span>
+                <p id="kpi-pro-mermas" style="font-size: 1.8rem; font-weight: 800; color: #fff; margin-top: 5px;">0 u.</p>
+                <small style="color: var(--rose-danger);">⚠️ Fugas detectadas en ruta</small>
+            </div>
+            <div class="tarjeta-kpi kpi-verde">
+                <span style="color: var(--text-muted); font-size: 0.8rem; font-weight: bold; display: block;">ALERTAS DE RUPTURA STOCK</span>
+                <p id="kpi-pro-alertas" style="font-size: 1.8rem; font-weight: 800; color: #fff; margin-top: 5px;">0 ítems</p>
+                <small style="color: #64748b;">🚫 Existencias en nivel cero</small>
+            </div>
+        </div>
+
+        <!-- GRÁFICOS DE TIEMPO Y DONANTES -->
+        <div class="grid-graficos-pro">
+            <div class="chart-container-pro" style="height: 360px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="font-size: 1rem; color: #fff; margin:0;">📈 Línea de Tendencia Temporal (Ingresos)</h3>
+                    <select id="bi-filtro-periodo" style="background: var(--bg-principal); color: var(--emerald); border: 1px solid var(--emerald); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; width:auto; margin:0;">
+                        <option value="diario">Diario</option>
+                        <option value="semanal" selected>Semanal</option>
+                        <option value="quincenal">Quincenal</option>
+                        <option value="mensual">Mensual</option>
+                        <option value="trimestral">Trimestral</option>
+                        <option value="semestral">Semestral</option>
+                        <option value="anual">Anual</option>
+                    </select>
+                </div>
+                <div style="position: relative; height: 270px;"><canvas id="chart-pro-linea-tiempo"></canvas></div>
+            </div>
+
+            <div class="chart-container-pro" style="height: 360px;">
+                <h3 style="font-size: 1rem; margin-bottom: 15px; color: #fff;">🤝 Ranking de Donantes Activos (Volumen Entregado)</h3>
+                <div style="position: relative; height: 270px;"><canvas id="chart-pro-donantes"></canvas></div>
+            </div>
+        </div>
+
+        <!-- GRÁFICOS DE CATEGORÍAS Y MERMAS -->
+        <div class="grid-graficos-pro">
+            <div class="chart-container-pro">
+                <h3 style="font-size: 1rem; margin-bottom: 15px; color: #fff;">📊 Disponibilidad de Inventario por Categoría</h3>
+                <div style="position: relative; height: 230px;"><canvas id="chart-pro-categorias"></canvas></div>
+            </div>
+            <div class="chart-container-pro">
+                <h3 style="font-size: 1rem; margin-bottom: 15px; color: #fff;">📉 Top Renglones con Mayor Tasa de Merma</h3>
+                <div style="position: relative; height: 230px;"><canvas id="chart-pro-mermas-barras"></canvas></div>
+            </div>
+        </div>
+
+        <!-- CUADRO DE BALANCES Y SEMÁFORO LOGÍSTICO -->
+        <div class="tarjeta" style="background: var(--bg-tarjeta); border: 1px solid var(--border-ui); padding: 20px; margin-top: 25px;">
+            <h3 style="color: #fff; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">📋 Balance de Recursos y Semáforo de Alertas</h3>
+            <table class="tabla-auditoria-pro">
+                <thead>
+                    <tr>
+                        <th>Centro de Acopio / Almacén</th>
+                        <th>Categoría de Suministro</th>
+                        <th>Total Disponible (Bultos/U)</th>
+                        <th>Estado de Alerta Logística</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-pro-balances-cuerpo"></tbody>
+            </table>
+        </div>
+
+        <!-- PIE DE PÁGINA PROFESIONAL INTEGRADO -->
+        <footer style="text-align: center; padding: 25px 10px; color: #64748b; font-size: 0.8rem; margin-top: 50px; background: #0f172a; border-top: 1px solid #1e293b; border-radius: 6px 6px 0 0;">
+            <div style="font-weight: bold; color: #94a3b8; margin-bottom: 4px;">🛡️ Sistema Central de Logística Humanitaria</div>
+            <div>© Todos los derechos reservados. Desarrollado por <strong>Antonio Altuna Guánchez</strong> | Guarenas - Venezuela (2026 - 2030)</div>
+        </footer>
+    </div>
+
+    <script>
+        const sesionRol = sessionStorage.getItem('usuario_rol');
+        const sesionCentroId = sessionStorage.getItem('usuario_centro_id');
+
+        if (!sesionRol) {
+            alert("Acceso denegado. Protocolo de seguridad inactivo. Redirigiendo...");
+            location.href = 'index.html';
+        }
+
+        let chartCategoriasInstance = null;
+        let chartMermasInstance = null;
+        let chartLineaTiempoInstance = null;
+        let chartDonantesInstance = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!window.supabaseClient) return console.error("Error: Cliente Supabase inaccesible.");
+            
+            const hoy = new Date();
+            const fechaString = `${hoy.getDate()}/${hoy.getMonth() + 1}/${hoy.getFullYear()}`;
+            document.getElementById('pdf-fecha-cabecera').textContent = fechaString;
+
+            await inicializarFiltroCentros();
+            await calcularMetricasPro();
+
+            document.getElementById('btn-bi-actualizar').addEventListener('click', async () => {
+                await calcularMetricasPro();
+            });
+
+            document.getElementById('bi-filtro-periodo').addEventListener('change', async () => {
+                const centroSeleccionado = document.getElementById('bi-filtro-centro').value;
+                await renderizarCronogramaHistorico(centroSeleccionado);
+            });
+        });
+
+        async function inicializarFiltroCentros() {
+            const { data: centros } = await window.supabaseClient.from('centros_acopio').select('id, nombre');
+            const selector = document.getElementById('bi-filtro-centro');
+            if (!selector) return;
+            
+            selector.innerHTML = '<option value="todos">Todos los Centros (Consolidado)</option>';
+            centros?.forEach(c => {
+                selector.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+            });
+
+            if (sesionRol === 'operador' && sesionCentroId) {
+                selector.value = parseInt(sesionCentroId);
+                selector.disabled = true;
+            }
+        }
+
+        async function calcularMetricasPro() {
+            const centroSeleccionado = document.getElementById('bi-filtro-centro').value;
+            const supabase = window.supabaseClient;
+
+            let qExistencias = supabase.from('inventario_centros').select('cantidad_unidades');
+            if (centroSeleccionado !== 'todos') qExistencias = qExistencias.eq('centro_id', centroSeleccionado);
+            const { data: dExistencias } = await qExistencias;
+            const totalUnits = dExistencias?.reduce((acc, curr) => acc + curr.cantidad_unidades, 0) || 0;
+            document.getElementById('kpi-pro-existencias').textContent = totalUnits.toLocaleString() + " u.";
+
+            let qTransitos = supabase.from('traslados').select('*', { count: 'exact', head: true }).eq('estado', 'EN_TRANSITO');
+            if (centroSeleccionado !== 'todos') qTransitos = qTransitos.or(`centro_origen_id.eq.${centroSeleccionado},centro_destino_id.eq.${centroSeleccionado}`);
+            const { count: totalTransitos } = await qTransitos;
+            document.getElementById('kpi-pro-transitos').textContent = (totalTransitos || 0) + " camiones";
+
+            const { data: dMermas } = await supabase.from('vista_control_mermas_traslados').select('merma');
+            const totalMermas = dMermas?.reduce((acc, curr) => acc + (curr.merma || 0), 0) || 0;
+            document.getElementById('kpi-pro-mermas').textContent = totalMermas.toLocaleString() + " u.";
+
+            let qAlertas = supabase.from('inventario_centros').select('*', { count: 'exact', head: true }).eq('cantidad_unidades', 0);
+            if (centroSeleccionado !== 'todos') qAlertas = qAlertas.eq('centro_id', centroSeleccionado);
+            const { count: totalAlertas } = await qAlertas;
+            document.getElementById('kpi-pro-alertas').textContent = (totalAlertas || 0) + " ítems";
+
+            await renderizarGraficoCategorias(centroSeleccionado);
+            await renderizarGraficoMermas();
+            await renderizarCronogramaHistorico(centroSeleccionado);
+            await renderizarAnaliticaDonantes(centroSeleccionado);
+            await poblarTablaBalances();
+        }
+
+        async function renderizarCronogramaHistorico(centroId) {
+            const periodo = document.getElementById('bi-filtro-periodo').value;
+            let query = window.supabaseClient.from('donaciones_ingresos').select('fecha_ingreso, id');
+            if (centroId !== 'todos') query = query.eq('centro_receptor_id', centroId);
+            
+            const { data: donaciones } = await query;
+            const histograma = {};
+
+            donaciones?.forEach(d => {
+                if (!d.fecha_ingreso) return;
+                const fecha = new Date(d.fecha_ingreso);
+                let llave = "";
+
+                const a = fecha.getFullYear();
+                const m = String(fecha.getMonth() + 1).padStart(2, '0');
+                const dNum = String(fecha.getDate()).padStart(2, '0');
+
+                switch(periodo) {
+                    case 'diario': llave = `${a}-${m}-${dNum}`; break;
+                    case 'semanal':
+                        const primerDia = new Date(fecha.setDate(fecha.getDate() - fecha.getDay()));
+                        llave = `Sem: ${primerDia.getDate()}/${primerDia.getMonth()+1}`;
+                        break;
+                    case 'quincenal': llave = fecha.getDate() <= 15 ? `${a}-${m}-Q1` : `${a}-${m}-Q2`; break;
+                    case 'mensual': llave = `${a}-${m}`; break;
+                    case 'trimestral':
+                        const q = Math.floor(fecha.getMonth() / 3) + 1;
+                        llave = `${a}-Trim T${q}`;
+                        break;
+                    case 'semestral': llave = fecha.getMonth() < 6 ? `${a}-Sem S1` : `${a}-Sem S2`; break;
+                    case 'anual': llave = `${a}`; break;
+                }
+                histograma[llave] = (histograma[llave] || 0) + 1;
+            });
+
+            const ctx = document.getElementById('chart-pro-linea-tiempo').getContext('2d');
+            if (chartLineaTiempoInstance) chartLineaTiempoInstance.destroy();
+
+            chartLineaTiempoInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(histograma),
+                    datasets: [{
+                        label: 'Frecuencia de Ingresos',
+                        data: Object.values(histograma),
+                        borderColor: varColorHex('--emerald'),
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: varColorHex('--emerald')
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        async function renderizarAnaliticaDonantes(centroId) {
+            const supabase = window.supabaseClient;
+            let query = supabase.from('donaciones_ingresos').select('id, donante_id');
+            if (centroId !== 'todos') query = query.eq('centro_receptor_id', centroId);
+            
+            const { data: ingresos } = await query;
+            const { data: donantes } = await supabase.from('donantes').select('id, nombre_o_razon_social');
+            
+            const conteoDonantes = {};
+            ingresos?.forEach(i => {
+                const dName = donantes?.find(d => d.id === i.donante_id)?.nombre_o_razon_social || "Anónimos / Particulares";
+                conteoDonantes[dName] = (conteoDonantes[dName] || 0) + 1;
+            });
+
+            const topDonantes = Object.entries(conteoDonantes).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            const ctx = document.getElementById('chart-pro-donantes').getContext('2d');
+            if (chartDonantesInstance) chartDonantesInstance.destroy();
+
+            chartDonantesInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: topDonantes.map(d => d[0]),
+                    datasets: [{
+                        data: topDonantes.map(d => d[1]),
+                        backgroundColor: 'rgba(139, 92, 246, 0.75)',
+                        borderColor: varColorHex('--purple-magic'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, beginAtZero: true },
+                        y: { grid: { display: false }, ticks: { color: '#fff' } }
+                    }
+                }
+            });
+        }
+
+        async function renderizarGraficoCategorias(centroId) {
+            let query = window.supabaseClient.from('vista_inventario_unificado').select('categoria, cantidad_unidades');
+            if (centroId !== 'todos') query = query.eq('centro_id', centroId);
+
+            const { data } = await query;
+            const resumen = {};
+            data?.forEach(item => {
+                resumen[item.categoria] = (resumen[item.categoria] || 0) + item.cantidad_unidades;
+            });
+
+            const ctx = document.getElementById('chart-pro-categorias').getContext('2d');
+            if (chartCategoriasInstance) chartCategoriasInstance.destroy();
+
+            chartCategoriasInstance = new Chart(ctx, {
+                type: 'polarArea',
+                data: {
+                    labels: Object.keys(resumen),
+                    datasets: [{
+                        data: Object.values(resumen),
+                        backgroundColor: ['rgba(59, 130, 246, 0.6)', 'rgba(16, 185, 129, 0.6)', 'rgba(245, 158, 11, 0.6)', 'rgba(239, 68, 68, 0.6)', 'rgba(139, 92, 246, 0.6)']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { color: '#94a3b8' } } },
+                    scales: { r: { grid: { color: '#334155' }, angleLines: { color: '#334155' } } }
+                }
+            });
+        }
+
+        async function renderizarGraficoMermas() {
+            const { data } = await window.supabaseClient.from('vista_control_mermas_traslados').select('*').order('merma', { ascending: false }).limit(5);
+            const productos = data?.map(d => d.nombre_producto) || [];
+            const mermasValores = data?.map(d => d.merma) || [];
+
+            const ctx = document.getElementById('chart-pro-mermas-barras').getContext('2d');
+            if (chartMermasInstance) chartMermasInstance.destroy();
+
+            chartMermasInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: productos,
+                    datasets: [{
+                        data: mermasValores,
+                        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        async function poblarTablaBalances() {
+            const cuerpo = document.getElementById('tabla-pro-balances-cuerpo');
+            if (!cuerpo) return;
+
+            const { data: balances } = await window.supabaseClient.from('vista_balance_recursos').select('*');
+            cuerpo.innerHTML = "";
+
+            balances?.forEach(b => {
+                let badgeClass = "badge-estable";
+                if (b.estado_alerta?.toUpperCase().includes("CRÍTICO") || b.estado_alerta?.toUpperCase().includes("ALERTA")) {
+                    badgeClass = "badge-critico";
+                } else if (b.estado_alerta?.toUpperCase().includes("REVISAR") || b.estado_alerta?.toUpperCase().includes("BAJO")) {
+                    badgeClass = "badge-alerta";
+                }
+
+                cuerpo.innerHTML += `
+                    <tr style="border-bottom: 1px solid #334155;">
+                        <td><strong>🏢 ${b.centro_acopio}</strong></td>
+                        <td><span class="badge" style="background:#475569; color:#fff; font-size:0.75rem;">${b.categoria}</span></td>
+                        <td style="font-weight: bold; color: #fff;">${parseInt(b.total_disponible).toLocaleString()} unidades</td>
+                        <td><span class="badge-pro ${badgeClass}">${b.estado_alerta || 'Estable'}</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function varColorHex(varName) {
+            return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+        }
+    </script>
+</body>
+</html>
