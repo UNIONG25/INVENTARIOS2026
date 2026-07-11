@@ -23,6 +23,43 @@
             padding: 25px; 
             border-radius: 8px; 
             max-width: 500px; width: 90%;
+            position: relative;
+        }
+        /* Estilos del live-search unificado tipo factura */
+        .contenedor-buscador {
+            position: relative;
+            width: 100%;
+        }
+        .lista-sugerencias {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 999;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            margin-top: 2px;
+            padding: 0;
+            list-style: none;
+            display: none;
+        }
+        .lista-sugerencias li {
+            padding: 10px;
+            color: #fff;
+            cursor: pointer;
+            border-bottom: 1px solid #334155;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+        .lista-sugerencias li:last-child {
+            border-bottom: none;
+        }
+        .lista-sugerencias li:hover {
+            background: #10b981; /* Color de éxito para ingresos */
         }
     </style>
 </head>
@@ -35,7 +72,8 @@
         <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
         <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
         <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
-	<li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
+        <li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
+        <li><a href="#" onclick="sessionStorage.clear(); location.href='index.html';" class="navbar-link" style="color: #ef4444; font-weight: bold;">🚪 Cerrar Sesión</a></li>
     </ul>
 </nav>
 
@@ -99,8 +137,7 @@
                             <th>Cantidad</th>
                         </tr>
                     </thead>
-                    <tbody id="lista-cuerpo">
-                        </tbody>
+                    <tbody id="lista-cuerpo"></tbody>
                 </table>
                 
                 <button id="btn-guardar-donacion" style="margin-top: 20px; width: 100%; background-color: var(--color-exito); font-size: 1.1rem;">
@@ -112,16 +149,22 @@
 
     <div id="modal-producto" class="modal">
         <div class="modal-contenido">
-            <h3 style="margin-bottom: 15px;">Formulario de Producto</h3>
+            <h3 style="margin-bottom: 15px; color: #1e293b;">Formulario de Producto</h3>
             
-            <label for="modal-codigo">Código de Barras (Opcional si es manual):</label>
-            <input type="text" id="modal-codigo" placeholder="Ej. 75010... o dejar vacío para autogenerar">
+            <label for="modal-nombre" style="color: #475569;">Nombre Completo del Producto:</label>
+            <div class="contenedor-buscador" style="margin-bottom: 12px;">
+                <input type="text" id="modal-nombre" placeholder="Ej. Harina de Maíz 1kg" autocomplete="off" style="margin:0;">
+                <ul id="sugerencias-nombre-lista" class="lista-sugerencias"></ul>
+            </div>
 
-            <label for="modal-nombre">Nombre Completo del Producto:</label>
-            <input type="text" id="modal-nombre" placeholder="Ej. Harina de Maíz 1kg">
+            <label for="modal-codigo" style="color: #475569;">Código de Barras:</label>
+            <div class="contenedor-buscador" style="margin-bottom: 12px;">
+                <input type="text" id="modal-codigo" placeholder="Ej. 75010... o escanear con la pistola" autocomplete="off" style="margin:0;">
+                <ul id="sugerencias-codigo-lista" class="lista-sugerencias"></ul>
+            </div>
 
-            <label for="modal-categoria">Categoría:</label>
-            <select id="modal-categoria">
+            <label for="modal-categoria" style="color: #475569;">Categoría:</label>
+            <select id="modal-categoria" style="margin-bottom: 12px;">
                 <option value="Alimentos">Alimentos No Perecederos</option>
                 <option value="Agua">Agua / Hidratación</option>
                 <option value="Medicamentos">Medicamentos / Primeros Auxilios</option>
@@ -129,10 +172,10 @@
                 <option value="Ropa">Ropa y Mantas</option>
             </select>
 
-            <label for="modal-cantidad">Cantidad que Ingresa:</label>
+            <label for="modal-cantidad" style="color: #475569;">Cantidad que Ingresa:</label>
             <input type="number" id="modal-cantidad" value="1" min="1">
 
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button id="btn-modal-guardar" style="background-color: var(--color-exito); flex: 1;">Agregar a la Lista</button>
                 <button id="btn-modal-cancelar" style="background-color: var(--color-peligro); flex: 1;">Cancelar</button>
             </div>
@@ -142,38 +185,41 @@
     <script src="js/supabase_config.js"></script>
 
     <script>
-// Verificar si hay sesión activa
-const sesionRol = sessionStorage.getItem('usuario_rol');
-const sesionCentroId = sessionStorage.getItem('usuario_centro_id');
+        const sesionRol = sessionStorage.getItem('usuario_rol');
+        const sesionCentroId = sessionStorage.getItem('usuario_centro_id');
 
-if (!sesionRol) {
-    alert("Acceso denegado. Por favor inicie sesión.");
-    location.href = 'index.html';
-}
+        if (!sesionRol) {
+            alert("Acceso denegado. Por favor inicie sesión.");
+            location.href = 'index.html';
+        }
 
-// Lógica de restricción visual para selects o filtros
-function aplicarRestriccionPorCentro(selectElementId) {
-    const selector = document.getElementById(selectElementId);
-    if (!selector) return;
+        function aplicarRestriccionPorCentro(selectElementId) {
+            const selector = document.getElementById(selectElementId);
+            if (!selector) return;
 
-    if (sesionRol === 'operador') {
-        // Si es operador, forzar a que el select use únicamente su centro asignado
-        selector.value = sesionCentroId;
-        selector.disabled = true; // Deshabilitar para que no pueda cambiar de almacén
-    }
-}
+            if (sesionRol === 'operador' && sesionCentroId) {
+                selector.value = parseInt(sesionCentroId);
+                selector.disabled = true; 
+            } else if (sesionCentroId) {
+                selector.value = parseInt(sesionCentroId);
+            }
+        }
+
         let productosDonados = []; 
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!window.supabaseClient) return alert("Error: Supabase no configurado.");
             await cargarCentrosReceptores();
+            aplicarRestriccionPorCentro('centro-receptor');
             inicializarEscaner();
             configurarEventosModal();
+            configurarDobleBuscadorModal();
         });
 
         async function cargarCentrosReceptores() {
             const { data: centros } = await window.supabaseClient.from('centros_acopio').select('id, nombre');
             const selector = document.getElementById('centro-receptor');
+            selector.innerHTML = '<option value="">Seleccione un Centro...</option>';
             centros?.forEach(c => {
                 const opcion = document.createElement('option');
                 opcion.value = c.id;
@@ -187,43 +233,134 @@ function aplicarRestriccionPorCentro(selectElementId) {
             html5QrcodeScanner.render(onScanSuccess);
         }
 
-        // Al escanear con la cámara
         async function onScanSuccess(decodedText) {
-            document.getElementById('codigo-detectado').textContent = decodedText;
+            document.getElementById('codigo-detectated').textContent = decodedText;
             
-            // CORREGIDO: .maybeSingle() para evitar que el 406 ensucie la consola si el código no existe
             const { data: producto, error } = await window.supabaseClient
                 .from('productos_maestro')
                 .select('*')
                 .eq('codigo_barras', decodedText)
                 .maybeSingle();
 
-            if (error) {
-                console.error("Error al buscar producto:", error);
-                return;
-            }
+            if (error) return console.error("Error al buscar producto:", error);
 
             if (!producto) {
-                // Si no existe, abre el modal con el código ya pre-llenado para que no trabajes doble
                 abrirModalProducto(decodedText);
             } else {
-                // Si existe, pide cantidad rápido e inserta
                 let cantidad = parseInt(prompt(`¿Cuántas unidades de "${producto.nombre_producto}" ingresan?`, "1")) || 1;
                 agregarAFormularioTemporal(producto, cantidad);
             }
         }
 
-        // Control del Modal Flotante
         function configurarEventosModal() {
             document.getElementById('btn-manual-abrir').addEventListener('click', () => abrirModalProducto(''));
             document.getElementById('btn-modal-cancelar').addEventListener('click', cerrarModalProducto);
             document.getElementById('btn-modal-guardar').addEventListener('click', procesarGuardadoModal);
         }
 
+        // LÓGICA DEL DOBLE BUSCADOR INDEPENDIENTE (EVITA LOOPS INFINITOS)
+        function configurarDobleBuscadorModal() {
+            const inputNombre = document.getElementById('modal-nombre');
+            const inputCodigo = document.getElementById('modal-codigo');
+            const sugerenciasNombre = document.getElementById('sugerencias-nombre-lista');
+            const sugerenciasCodigo = document.getElementById('sugerencias-codigo-lista');
+
+            // A. Buscador por Escritura de Nombre
+            inputNombre.addEventListener('input', async () => {
+                const query = inputNombre.value.trim();
+                sugerenciasCodigo.style.display = 'none';
+
+                if (query.length < 2) {
+                    sugerenciasNombre.style.display = 'none';
+                    return;
+                }
+
+                const { data: productos } = await window.supabaseClient
+                    .from('productos_maestro')
+                    .select('id, nombre_producto, codigo_barras, categoria')
+                    .ilike('nombre_producto', `%${query}%`)
+                    .limit(5);
+
+                if (!productos || productos.length === 0) {
+                    sugerenciasNombre.style.display = 'none';
+                    return;
+                }
+
+                sugerenciasNombre.innerHTML = "";
+                sugerenciasNombre.style.display = 'block';
+
+                productos.forEach(p => {
+                    const li = document.createElement('li');
+                    li.textContent = `${p.nombre_producto} [Código: ${p.codigo_barras || 'Manual'}]`;
+                    li.addEventListener('click', () => {
+                        inputNombre.value = p.nombre_producto;
+                        inputCodigo.value = p.codigo_barras || ''; // Escribe valor sin disparar evento input
+                        document.getElementById('modal-categoria').value = p.categoria;
+                        sugerenciasNombre.style.display = 'none';
+                        document.getElementById('modal-cantidad').focus();
+                    });
+                    sugerenciasNombre.appendChild(li);
+                });
+            });
+
+            // B. Buscador por Escritura o Disparo de Código de Barras
+            inputCodigo.addEventListener('input', async () => {
+                const query = inputCodigo.value.trim();
+                sugerenciasNombre.style.display = 'none';
+
+                if (query.length < 2) {
+                    sugerenciasCodigo.style.display = 'none';
+                    return;
+                }
+
+                const { data: productos } = await window.supabaseClient
+                    .from('productos_maestro')
+                    .select('id, nombre_producto, codigo_barras, categoria')
+                    .eq('codigo_barras', query) // Busca coincidencia exacta primero
+                    .limit(5);
+
+                if (!productos || productos.length === 0) {
+                    sugerenciasCodigo.style.display = 'none';
+                    return;
+                }
+
+                sugerenciasCodigo.innerHTML = "";
+                sugerenciasCodigo.style.display = 'block';
+
+                productos.forEach(p => {
+                    const li = document.createElement('li');
+                    li.textContent = `[${p.codigo_barras}] - ${p.nombre_producto}`;
+                    li.addEventListener('click', () => {
+                        inputNombre.value = p.nombre_producto; // Escribe valor sin disparar evento input
+                        inputCodigo.value = p.codigo_barras;
+                        document.getElementById('modal-categoria').value = p.categoria;
+                        sugerenciasCodigo.style.display = 'none';
+                        document.getElementById('modal-cantidad').focus();
+                    });
+                    sugerenciasCodigo.appendChild(li);
+                });
+                
+                // Si la pistola de barras escribe el código completo y es único, lo auto-selecciona rápido
+                if(productos.length === 1 && productos[0].codigo_barras === query) {
+                    inputNombre.value = productos[0].nombre_producto;
+                    document.getElementById('modal-categoria').value = productos[0].categoria;
+                    sugerenciasCodigo.style.display = 'none';
+                }
+            });
+
+            // Cerrar listas al hacer clic fuera del modal
+            document.addEventListener('click', (e) => {
+                if (e.target !== inputNombre) sugerenciasNombre.style.display = 'none';
+                if (e.target !== inputCodigo) sugerenciasCodigo.style.display = 'none';
+            });
+        }
+
         function abrirModalProducto(codigo = '') {
             document.getElementById('modal-codigo').value = codigo;
             document.getElementById('modal-nombre').value = '';
             document.getElementById('modal-cantidad').value = '1';
+            document.getElementById('sugerencias-nombre-lista').style.display = 'none';
+            document.getElementById('sugerencias-codigo-lista').style.display = 'none';
             document.getElementById('modal-producto').style.display = 'flex';
             document.getElementById('modal-nombre').focus();
         }
@@ -232,7 +369,6 @@ function aplicarRestriccionPorCentro(selectElementId) {
             document.getElementById('modal-producto').style.display = 'none';
         }
 
-        // Lógica unificada: Guarda en Supabase (si es nuevo) y carga en la tabla visual
         async function procesarGuardadoModal() {
             const supabase = window.supabaseClient;
             let codigo = document.getElementById('modal-codigo').value.trim();
@@ -241,15 +377,11 @@ function aplicarRestriccionPorCentro(selectElementId) {
             const cantidad = parseInt(document.getElementById('modal-cantidad').value) || 1;
 
             if (!nombre) return alert("El nombre del producto es obligatorio.");
-            
-            // Si es manual puro sin código, le asignamos uno temporal único basado en la hora
             if (!codigo) codigo = 'MAN-' + Date.now();
 
-            // 1. Verificar primero si por error manual ya existía ese código (CORREGIDO con .maybeSingle)
             let { data: producto } = await supabase.from('productos_maestro').select('*').eq('codigo_barras', codigo).maybeSingle();
 
             if (!producto) {
-                // Registro "en caliente" en el maestro (CORREGIDO con .maybeSingle)
                 const { data: nuevoProd, error } = await supabase
                     .from('productos_maestro')
                     .insert([{ codigo_barras: codigo, nombre_producto: nombre, categoria: category }])
@@ -260,7 +392,6 @@ function aplicarRestriccionPorCentro(selectElementId) {
                 producto = nuevoProd;
             }
 
-            // 2. Cargar en la lista
             agregarAFormularioTemporal(producto, cantidad);
             cerrarModalProducto();
         }
@@ -283,7 +414,6 @@ function aplicarRestriccionPorCentro(selectElementId) {
             `;
         }
 
-        // Consolidación final de la donación entera
         document.getElementById('btn-guardar-donacion').addEventListener('click', async () => {
             const supabase = window.supabaseClient;
             const centroId = document.getElementById('centro-receptor').value;
@@ -292,7 +422,6 @@ function aplicarRestriccionPorCentro(selectElementId) {
             if (!centroId) return alert("Por favor, seleccione el centro receptor.");
             if (productosDonados.length === 0) return alert("No hay productos en la lista.");
 
-            // A. Manejo de Donantes: Busca si ya existe por nombre para no repetir
             let donanteId = null;
             if (nombreDonante !== "Anónimo") {
                 const { data: donanteExistente } = await supabase
@@ -304,7 +433,6 @@ function aplicarRestriccionPorCentro(selectElementId) {
                 if (donanteExistente) {
                     donanteId = donanteExistente.id;
                 } else {
-                    // Si es nuevo, lo crea de una vez (CORREGIDO con .maybeSingle)
                     const { data: nuevoDonante } = await supabase.from('donantes').insert([{
                         nombre_o_razon_social: nombreDonante,
                         tipo_donante: document.getElementById('donante-tipo').value,
@@ -314,15 +442,483 @@ function aplicarRestriccionPorCentro(selectElementId) {
                 }
             }
 
-            // B. Crear la cabecera (CORREGIDO con .maybeSingle)
             const { data: cabecera, error: errCab } = await supabase.from('donaciones_ingresos').insert([{
-                centro_receptor_id: centroId,
+                centro_receptor_id: parseInt(centroId),
                 donante_id: donanteId
             }]).select().maybeSingle();
 
             if (errCab) return alert("Error al abrir manifiesto.");
 
-            // C. Desglosar detalles e impactar inventario
+            for (const prod of productosDonados) {
+                await supabase.from('detalle_donacion_ingreso').insert([{
+                    donacion_id: cabecera.id,
+                    producto_id: prod.producto_id,
+                    cantidad: prod.cantidad
+                }]);
+
+                await supabase.rpc('ingresar_o_sumar_stock', {
+                    p_centro_id: parseInt(centroId),
+                    p_producto_id: parseInt(prod.producto_id),
+                    p_cantidad: parseInt(prod.cantidad)
+                });
+            }
+
+            alert("✓ Todo registrado con éxito. Inventarios actualizados y donante indexado.");
+            location.reload();
+        });
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+    <title>Registro de Donaciones - Logística de Emergencia</title>
+    <link rel="stylesheet" href="css/estilos.css">
+    
+    <script src="js/libs/supabase-js.js"></script>
+    <script src="js/libs/html5-qrcode.min.js"></script>
+
+    <style>
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 100; 
+            left: 0; top: 0; width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.5);
+            align-items: center; justify-content: center;
+        }
+        .modal-contenido {
+            background-color: white; 
+            padding: 25px; 
+            border-radius: 8px; 
+            max-width: 500px; width: 90%;
+            position: relative;
+        }
+        /* Estilos del live-search unificado tipo factura */
+        .contenedor-buscador {
+            position: relative;
+            width: 100%;
+        }
+        .lista-sugerencias {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 999;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            margin-top: 2px;
+            padding: 0;
+            list-style: none;
+            display: none;
+        }
+        .lista-sugerencias li {
+            padding: 10px;
+            color: #fff;
+            cursor: pointer;
+            border-bottom: 1px solid #334155;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+        .lista-sugerencias li:last-child {
+            border-bottom: none;
+        }
+        .lista-sugerencias li:hover {
+            background: #10b981; /* Color de éxito para ingresos */
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="dashboard.html" class="navbar-marca">🛡️ LogísticaDesastres</a>
+    <ul class="navbar-menu">
+        <li><a href="dashboard.html" class="navbar-link">Panel General</a></li>
+        <li><a href="donaciones.html" class="navbar-link">1. Recepción Donaciones</a></li>
+        <li><a href="traslados.html" class="navbar-link">2. Traslado Camiones</a></li>
+        <li><a href="despachos.html" class="navbar-link">3. Salida Refugios</a></li>
+        <li><a href="recepcion.html" class="navbar-link">4. Recibir Camiones</a></li>
+        <li><a href="#" onclick="sessionStorage.clear(); location.href='index.html';" class="navbar-link" style="color: #ef4444; font-weight: bold;">🚪 Cerrar Sesión</a></li>
+    </ul>
+</nav>
+
+    <div class="contenedor">
+        <header style="margin-bottom: 20px;">
+            <h1>Recepción de Donaciones</h1>
+            <p>Punto de entrada de suministros para el inventario de emergencia.</p>
+        </header>
+
+        <div class="tarjeta">
+            <h2>1. Datos de Origen y Destino</h2>
+            <div class="grid-2">
+                <div>
+                    <label for="centro-receptor">Centro de Acopio que Recibe la Ayuda:</label>
+                    <select id="centro-receptor">
+                        <option value="">Seleccione un Centro...</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="donante-nombre">Nombre o Razón Social del Donante (Opcional):</label>
+                    <input type="text" id="donante-nombre" placeholder="Ej. ONG Cruz Vital o Anónimo">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label for="donante-tipo">Tipo de Donante:</label>
+                    <select id="donante-tipo">
+                        <option value="Particular">Particular</option>
+                        <option value="Empresa">Empresa Privada</option>
+                        <option value="ONG">ONG / Organización</option>
+                        <option value="Gobierno">Institución Pública</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="donante-telefono">Número de Contacto:</label>
+                    <input type="text" id="donante-telefono" placeholder="Ej. 0412-0000000">
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="tarjeta">
+                <h2>2. Captura de Productos</h2>
+                <p style="margin-bottom: 10px; color: #64748b;">Usa la cámara o ingresa un producto manualmente si no tiene código.</p>
+                
+                <button id="btn-manual-abrir" type="button" style="background-color: var(--color-principal); width: 100%; margin-bottom: 15px;">
+                    ➕ Registrar / Buscar Producto Manualmente
+                </button>
+
+                <div id="lector-camara" style="width: 100%; border-radius: 8px; overflow: hidden; background: #000;"></div>
+                <p style="margin-top: 10px;">Último código detectado: <strong id="codigo-detectado" style="color: var(--color-principal);">Ninguno</strong></p>
+            </div>
+
+            <div class="tarjeta">
+                <h2>3. Productos en esta Donación</h2>
+                <table class="tabla-logistica">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th>Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-cuerpo"></tbody>
+                </table>
+                
+                <button id="btn-guardar-donacion" style="margin-top: 20px; width: 100%; background-color: var(--color-exito); font-size: 1.1rem;">
+                    ✓ Consolidar Donación e Incrementar Stock
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-producto" class="modal">
+        <div class="modal-contenido">
+            <h3 style="margin-bottom: 15px; color: #1e293b;">Formulario de Producto</h3>
+            
+            <label for="modal-nombre" style="color: #475569;">Nombre Completo del Producto:</label>
+            <div class="contenedor-buscador" style="margin-bottom: 12px;">
+                <input type="text" id="modal-nombre" placeholder="Ej. Harina de Maíz 1kg" autocomplete="off" style="margin:0;">
+                <ul id="sugerencias-nombre-lista" class="lista-sugerencias"></ul>
+            </div>
+
+            <label for="modal-codigo" style="color: #475569;">Código de Barras:</label>
+            <div class="contenedor-buscador" style="margin-bottom: 12px;">
+                <input type="text" id="modal-codigo" placeholder="Ej. 75010... o escanear con la pistola" autocomplete="off" style="margin:0;">
+                <ul id="sugerencias-codigo-lista" class="lista-sugerencias"></ul>
+            </div>
+
+            <label for="modal-categoria" style="color: #475569;">Categoría:</label>
+            <select id="modal-categoria" style="margin-bottom: 12px;">
+                <option value="Alimentos">Alimentos No Perecederos</option>
+                <option value="Agua">Agua / Hidratación</option>
+                <option value="Medicamentos">Medicamentos / Primeros Auxilios</option>
+                <option value="Higiene">Higiene Personal</option>
+                <option value="Ropa">Ropa y Mantas</option>
+            </select>
+
+            <label for="modal-cantidad" style="color: #475569;">Cantidad que Ingresa:</label>
+            <input type="number" id="modal-cantidad" value="1" min="1">
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button id="btn-modal-guardar" style="background-color: var(--color-exito); flex: 1;">Agregar a la Lista</button>
+                <button id="btn-modal-cancelar" style="background-color: var(--color-peligro); flex: 1;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/supabase_config.js"></script>
+
+    <script>
+        const sesionRol = sessionStorage.getItem('usuario_rol');
+        const sesionCentroId = sessionStorage.getItem('usuario_centro_id');
+
+        if (!sesionRol) {
+            alert("Acceso denegado. Por favor inicie sesión.");
+            location.href = 'index.html';
+        }
+
+        function aplicarRestriccionPorCentro(selectElementId) {
+            const selector = document.getElementById(selectElementId);
+            if (!selector) return;
+
+            if (sesionRol === 'operador' && sesionCentroId) {
+                selector.value = parseInt(sesionCentroId);
+                selector.disabled = true; 
+            } else if (sesionCentroId) {
+                selector.value = parseInt(sesionCentroId);
+            }
+        }
+
+        let productosDonados = []; 
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!window.supabaseClient) return alert("Error: Supabase no configurado.");
+            await cargarCentrosReceptores();
+            aplicarRestriccionPorCentro('centro-receptor');
+            inicializarEscaner();
+            configurarEventosModal();
+            configurarDobleBuscadorModal();
+        });
+
+        async function cargarCentrosReceptores() {
+            const { data: centros } = await window.supabaseClient.from('centros_acopio').select('id, nombre');
+            const selector = document.getElementById('centro-receptor');
+            selector.innerHTML = '<option value="">Seleccione un Centro...</option>';
+            centros?.forEach(c => {
+                const opcion = document.createElement('option');
+                opcion.value = c.id;
+                opcion.textContent = c.nombre;
+                selector.appendChild(opcion);
+            });
+        }
+
+        function inicializarEscaner() {
+            const html5QrcodeScanner = new Html5QrcodeScanner("lector-camara", { fps: 15, qrbox: { width: 250, height: 150 } });
+            html5QrcodeScanner.render(onScanSuccess);
+        }
+
+        async function onScanSuccess(decodedText) {
+            document.getElementById('codigo-detectated').textContent = decodedText;
+            
+            const { data: producto, error } = await window.supabaseClient
+                .from('productos_maestro')
+                .select('*')
+                .eq('codigo_barras', decodedText)
+                .maybeSingle();
+
+            if (error) return console.error("Error al buscar producto:", error);
+
+            if (!producto) {
+                abrirModalProducto(decodedText);
+            } else {
+                let cantidad = parseInt(prompt(`¿Cuántas unidades de "${producto.nombre_producto}" ingresan?`, "1")) || 1;
+                agregarAFormularioTemporal(producto, cantidad);
+            }
+        }
+
+        function configurarEventosModal() {
+            document.getElementById('btn-manual-abrir').addEventListener('click', () => abrirModalProducto(''));
+            document.getElementById('btn-modal-cancelar').addEventListener('click', cerrarModalProducto);
+            document.getElementById('btn-modal-guardar').addEventListener('click', procesarGuardadoModal);
+        }
+
+        // LÓGICA DEL DOBLE BUSCADOR INDEPENDIENTE (EVITA LOOPS INFINITOS)
+        function configurarDobleBuscadorModal() {
+            const inputNombre = document.getElementById('modal-nombre');
+            const inputCodigo = document.getElementById('modal-codigo');
+            const sugerenciasNombre = document.getElementById('sugerencias-nombre-lista');
+            const sugerenciasCodigo = document.getElementById('sugerencias-codigo-lista');
+
+            // A. Buscador por Escritura de Nombre
+            inputNombre.addEventListener('input', async () => {
+                const query = inputNombre.value.trim();
+                sugerenciasCodigo.style.display = 'none';
+
+                if (query.length < 2) {
+                    sugerenciasNombre.style.display = 'none';
+                    return;
+                }
+
+                const { data: productos } = await window.supabaseClient
+                    .from('productos_maestro')
+                    .select('id, nombre_producto, codigo_barras, categoria')
+                    .ilike('nombre_producto', `%${query}%`)
+                    .limit(5);
+
+                if (!productos || productos.length === 0) {
+                    sugerenciasNombre.style.display = 'none';
+                    return;
+                }
+
+                sugerenciasNombre.innerHTML = "";
+                sugerenciasNombre.style.display = 'block';
+
+                productos.forEach(p => {
+                    const li = document.createElement('li');
+                    li.textContent = `${p.nombre_producto} [Código: ${p.codigo_barras || 'Manual'}]`;
+                    li.addEventListener('click', () => {
+                        inputNombre.value = p.nombre_producto;
+                        inputCodigo.value = p.codigo_barras || ''; // Escribe valor sin disparar evento input
+                        document.getElementById('modal-categoria').value = p.categoria;
+                        sugerenciasNombre.style.display = 'none';
+                        document.getElementById('modal-cantidad').focus();
+                    });
+                    sugerenciasNombre.appendChild(li);
+                });
+            });
+
+            // B. Buscador por Escritura o Disparo de Código de Barras
+            inputCodigo.addEventListener('input', async () => {
+                const query = inputCodigo.value.trim();
+                sugerenciasNombre.style.display = 'none';
+
+                if (query.length < 2) {
+                    sugerenciasCodigo.style.display = 'none';
+                    return;
+                }
+
+                const { data: productos } = await window.supabaseClient
+                    .from('productos_maestro')
+                    .select('id, nombre_producto, codigo_barras, categoria')
+                    .eq('codigo_barras', query) // Busca coincidencia exacta primero
+                    .limit(5);
+
+                if (!productos || productos.length === 0) {
+                    sugerenciasCodigo.style.display = 'none';
+                    return;
+                }
+
+                sugerenciasCodigo.innerHTML = "";
+                sugerenciasCodigo.style.display = 'block';
+
+                productos.forEach(p => {
+                    const li = document.createElement('li');
+                    li.textContent = `[${p.codigo_barras}] - ${p.nombre_producto}`;
+                    li.addEventListener('click', () => {
+                        inputNombre.value = p.nombre_producto; // Escribe valor sin disparar evento input
+                        inputCodigo.value = p.codigo_barras;
+                        document.getElementById('modal-categoria').value = p.categoria;
+                        sugerenciasCodigo.style.display = 'none';
+                        document.getElementById('modal-cantidad').focus();
+                    });
+                    sugerenciasCodigo.appendChild(li);
+                });
+                
+                // Si la pistola de barras escribe el código completo y es único, lo auto-selecciona rápido
+                if(productos.length === 1 && productos[0].codigo_barras === query) {
+                    inputNombre.value = productos[0].nombre_producto;
+                    document.getElementById('modal-categoria').value = productos[0].categoria;
+                    sugerenciasCodigo.style.display = 'none';
+                }
+            });
+
+            // Cerrar listas al hacer clic fuera del modal
+            document.addEventListener('click', (e) => {
+                if (e.target !== inputNombre) sugerenciasNombre.style.display = 'none';
+                if (e.target !== inputCodigo) sugerenciasCodigo.style.display = 'none';
+            });
+        }
+
+        function abrirModalProducto(codigo = '') {
+            document.getElementById('modal-codigo').value = codigo;
+            document.getElementById('modal-nombre').value = '';
+            document.getElementById('modal-cantidad').value = '1';
+            document.getElementById('sugerencias-nombre-lista').style.display = 'none';
+            document.getElementById('sugerencias-codigo-lista').style.display = 'none';
+            document.getElementById('modal-producto').style.display = 'flex';
+            document.getElementById('modal-nombre').focus();
+        }
+
+        function cerrarModalProducto() {
+            document.getElementById('modal-producto').style.display = 'none';
+        }
+
+        async function procesarGuardadoModal() {
+            const supabase = window.supabaseClient;
+            let codigo = document.getElementById('modal-codigo').value.trim();
+            const nombre = document.getElementById('modal-nombre').value.trim();
+            const category = document.getElementById('modal-categoria').value;
+            const cantidad = parseInt(document.getElementById('modal-cantidad').value) || 1;
+
+            if (!nombre) return alert("El nombre del producto es obligatorio.");
+            if (!codigo) codigo = 'MAN-' + Date.now();
+
+            let { data: producto } = await supabase.from('productos_maestro').select('*').eq('codigo_barras', codigo).maybeSingle();
+
+            if (!producto) {
+                const { data: nuevoProd, error } = await supabase
+                    .from('productos_maestro')
+                    .insert([{ codigo_barras: codigo, nombre_producto: nombre, categoria: category }])
+                    .select()
+                    .maybeSingle();
+                
+                if (error) return alert("Error al registrar producto base: " + error.message);
+                producto = nuevoProd;
+            }
+
+            agregarAFormularioTemporal(producto, cantidad);
+            cerrarModalProducto();
+        }
+
+        function agregarAFormularioTemporal(producto, cantidad) {
+            productosDonados.push({
+                producto_id: producto.id,
+                nombre: producto.nombre_producto,
+                categoria: producto.categoria,
+                cantidad: cantidad
+            });
+            
+            const cuerpoTabla = document.getElementById('lista-cuerpo');
+            cuerpoTabla.innerHTML += `
+                <tr>
+                    <td><strong>${producto.nombre_producto}</strong></td>
+                    <td><span class="badge badge-transito">${producto.categoria}</span></td>
+                    <td>${cantidad} u.</td>
+                </tr>
+            `;
+        }
+
+        document.getElementById('btn-guardar-donacion').addEventListener('click', async () => {
+            const supabase = window.supabaseClient;
+            const centroId = document.getElementById('centro-receptor').value;
+            const nombreDonante = document.getElementById('donante-nombre').value.trim() || "Anónimo";
+
+            if (!centroId) return alert("Por favor, seleccione el centro receptor.");
+            if (productosDonados.length === 0) return alert("No hay productos en la lista.");
+
+            let donanteId = null;
+            if (nombreDonante !== "Anónimo") {
+                const { data: donanteExistente } = await supabase
+                    .from('donantes')
+                    .select('id')
+                    .eq('nombre_o_razon_social', nombreDonante)
+                    .maybeSingle();
+
+                if (donanteExistente) {
+                    donanteId = donanteExistente.id;
+                } else {
+                    const { data: nuevoDonante } = await supabase.from('donantes').insert([{
+                        nombre_o_razon_social: nombreDonante,
+                        tipo_donante: document.getElementById('donante-tipo').value,
+                        telefono: document.getElementById('donante-telefono').value
+                    }]).select().maybeSingle();
+                    donanteId = nuevoDonante?.id;
+                }
+            }
+
+            const { data: cabecera, error: errCab } = await supabase.from('donaciones_ingresos').insert([{
+                centro_receptor_id: parseInt(centroId),
+                donante_id: donanteId
+            }]).select().maybeSingle();
+
+            if (errCab) return alert("Error al abrir manifiesto.");
+
             for (const prod of productosDonados) {
                 await supabase.from('detalle_donacion_ingreso').insert([{
                     donacion_id: cabecera.id,
