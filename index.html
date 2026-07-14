@@ -43,45 +43,49 @@
             e.preventDefault(); 
 
             const supabase = window.supabaseClient;
-            
             if (!supabase) {
                 alert("❌ Error: No se pudo establecer comunicación con el nodo central.");
                 return;
             }
             
-            // Forzamos la limpieza de espacios al principio y al final de ambos campos
             const user = document.getElementById('txt-usuario').value.trim();
             const pass = document.getElementById('txt-clave').value.trim();
+            const btnEntrar = e.target.querySelector('button');
+            
+            btnEntrar.disabled = true;
+            btnEntrar.innerText = "Verificando...";
 
             try {
-                // Hacemos la consulta aplicando filtros estrictos
-                const { data: usuario, error } = await supabase
+                // 1. Autenticación con Supabase Auth (La contraseña se valida en el servidor)
+                const { data: authData, error: errorAuth } = await supabase.auth.signInWithPassword({
+                    email: user, 
+                    password: pass
+                });
+
+                if (errorAuth) throw errorAuth;
+
+                // 2. Obtener los datos del perfil de usuario
+                const { data: usuario, error: errorProfile } = await supabase
                     .from('usuarios_sistema')
-                    .select('username, rol, centro_asignado_id, nombre_completo, password_text')
+                    .select('username, rol, centro_asignado_id, nombre_completo, user_id')
                     .eq('username', user)
-                    .maybeSingle(); 
+                    .single();
 
-                if (error) {
-                    alert("Error en la Base de Datos: " + error.message);
-                    return;
-                }
+                if (errorProfile) throw errorProfile;
 
-                // Hacemos la validación manual del password en el cliente para evitar problemas de cotejo en Postgres
-                if (!usuario || usuario.password_text.trim() !== pass) {
-                    alert("❌ Acceso denegado: Usuario o contraseña incorrectos.");
-                } else {
-                    // Guardamos la sesión activa
-                    sessionStorage.setItem('usuario_nombre', usuario.nombre_completo);
-                    sessionStorage.setItem('usuario_rol', usuario.rol);
-                    sessionStorage.setItem('usuario_centro_id', usuario.centro_asignado_id || 'todos');
+                // 3. Guardar sesión y redirigir
+                sessionStorage.setItem('usuario_nombre', usuario.nombre_completo);
+                sessionStorage.setItem('usuario_rol', usuario.rol);
+                sessionStorage.setItem('usuario_centro_id', usuario.centro_asignado_id || 'todos');
 
-                    alert(`✓ Conexión exitosa. Bienvenido/a: ${usuario.nombre_completo}`);
-                    location.href = 'dashboard.html';
-                }
+                alert(`✓ Conexión exitosa. Bienvenido/a: ${usuario.nombre_completo}`);
+                location.href = 'dashboard.html';
 
             } catch (err) {
-                console.error("Excepción atrapada en el login:", err);
-                alert("Ocurrió un error inesperado al procesar el ingreso.");
+                console.error("Error en login:", err);
+                alert("❌ Acceso denegado: Usuario o contraseña incorrectos.");
+                btnEntrar.disabled = false;
+                btnEntrar.innerText = "Entrar al Sistema";
             }
         });
     </script>
